@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 
-const serverEntry = new URL("../dist/server/index.mjs", import.meta.url);
+const serverEntry = new URL("../dist/server/entry.mjs", import.meta.url);
 
 test("Astro build emits a server handler for the health route", async () => {
 	assert.equal(

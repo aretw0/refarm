@@ -1,10 +1,10 @@
+import { createInMemoryAutomationAdapter } from "@refarm.dev/automation-contract-v1";
+import type { Effort, Task } from "@refarm.dev/effort-contract-v1";
+import { createInMemoryTaskAdapter } from "@refarm.dev/task-contract-v1";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { createInMemoryAutomationAdapter } from "@refarm.dev/automation-contract-v1";
-import type { Effort, Task } from "@refarm.dev/effort-contract-v1";
-import { createInMemoryTaskAdapter } from "@refarm.dev/task-contract-v1";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTaskMemoryBridge } from "../task-memory-bridge.js";
 import { FileTransportAdapter, type TaskExecutorFn } from "./file.js";
@@ -107,7 +107,7 @@ describe("Effort chat integration", () => {
 			};
 		});
 		const effortTransport = new FileTransportAdapter(TEST_BASE, executor as TaskExecutorFn);
-		const sidecar = new HttpSidecar(0, effortTransport);
+		const sidecar = new HttpSidecar(0, effortTransport.operations);
 		sidecar.addRouteHandler(createTasksRouteHandler(taskAdapter));
 		const automations = createInMemoryAutomationAdapter();
 

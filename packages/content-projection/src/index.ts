@@ -46,6 +46,17 @@ export interface ContentProjectionConfig {
 	relationType?: string;
 	reviewState?: string;
 	idPrefix?: string;
+	/**
+	 * Also read wikilinks out of frontmatter values. Off by default so existing
+	 * consumers keep their exact relation sets. Obsidian-style vaults put typed
+	 * links in frontmatter (`responsavel: "[[Arthur]]"`), and a body-only scan
+	 * silently drops them.
+	 */
+	linkFrontmatter?: boolean;
+}
+
+export interface FrontmatterWikiLink extends WikiLink {
+	key: string;
 }
 
 export interface ProjectedContentRecord extends KnowledgeRecord {
@@ -165,7 +176,22 @@ export function parseFrontmatter(text: string): FrontmatterParseResult {
 	}
 
 	const frontmatter = match[1] ?? "";
-	const parsed = YAML.parse(frontmatter);
+	// Unparseable frontmatter degrades to empty data rather than throwing: the
+	// line below already returns `{}` for YAML that parses to a non-object, and
+	// a parse error is the same kind of "no usable data" for a caller. Throwing
+	// here would take a whole vault down for one malformed file, and the raw
+	// text stays in `frontmatter` for callers that want to inspect it.
+	let parsed: unknown;
+	try {
+		// `"error"` silences warnings but keeps errors throwing, so the catch below
+		// still degrades to empty data. `"silent"` would swallow the errors too and
+		// hand back the parser's best guess — for `created: {{date}} {{time}}` that
+		// is `{ created: { "{ date }": null } }`, which is worse than no data at
+		// all: nonsense that looks like a value.
+		parsed = YAML.parse(frontmatter, { logLevel: "error" });
+	} catch {
+		parsed = undefined;
+	}
 	return {
 		data: isPlainObject(parsed) ? parsed : {},
 		body: match[2] ?? "",
@@ -192,6 +218,32 @@ export function extractMarkdownLinks(body: string): MarkdownLink[] {
 			...(match[3] ? { title: match[3].trim() } : {}),
 		}))
 		.filter((link) => link.label.length > 0 && link.target.length > 0);
+}
+
+export function extractFrontmatterWikilinks(
+	data: Record<string, unknown>,
+): FrontmatterWikiLink[] {
+	const links: FrontmatterWikiLink[] = [];
+	// Walks the whole value tree, not just top-level strings: real vaults nest
+	// links inside lists of objects (`entradas: [{ item: "[[Flour]]", qty: 1 }]`),
+	// and stopping at the first level drops exactly the structured relations that
+	// motivate reading frontmatter at all. `key` stays the top-level field, which
+	// is the name a human would use for the relation.
+	const walk = (value: unknown, key: string): void => {
+		if (typeof value === "string") {
+			for (const link of extractWikilinks(value)) links.push({ ...link, key });
+			return;
+		}
+		if (Array.isArray(value)) {
+			for (const entry of value) walk(entry, key);
+			return;
+		}
+		if (isPlainObject(value)) {
+			for (const entry of Object.values(value)) walk(entry, key);
+		}
+	};
+	for (const [key, value] of Object.entries(data)) walk(value, key);
+	return links;
 }
 
 export function extractExternalMarkdownLinks(body: string): MarkdownLink[] {
@@ -299,6 +351,15 @@ export function projectContentToRecords(
 			fields,
 			sections: [{ key: "body", content: parsed.body }],
 			relations: uniqueRelationsByTarget([
+				...(config.linkFrontmatter ? extractFrontmatterWikilinks(parsed.data) : []).flatMap((link) =>
+					resolveWikilinks([link], index, {
+						selfId: id,
+						relationType: config.relationType,
+					}).map((relation) => ({
+						...relation,
+						attrs: { ...relation.attrs, kind: "frontmatter", key: link.key },
+					})),
+				),
 				...resolveWikilinks(extractWikilinks(parsed.body), index, {
 					selfId: id,
 					relationType: config.relationType,

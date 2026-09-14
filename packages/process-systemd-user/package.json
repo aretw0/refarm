@@ -1,0 +1,34 @@
+{
+	"name": "@refarm.dev/process-systemd-user",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The borrowed supervisor: a declared process becomes a systemd --user unit, proposed through consent with the lifetime it actually delivers stated out loud",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/operation-consent-v1": "workspace:*",
+		"@refarm.dev/process-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}

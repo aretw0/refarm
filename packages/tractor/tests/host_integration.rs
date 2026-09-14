@@ -50,6 +50,12 @@ fn make_host(telemetry: TelemetryBus) -> PluginHost {
     let trust = TrustManager::new();
     PluginHost::new(trust, telemetry, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .expect("PluginHost::new")
+        // None of these fixtures carry a plugin.json integrity claim (the manifests
+        // this file writes via write_manifest_for_fixture() never set one either) —
+        // this suite exercises the manifest/runtime alignment + permission-vocabulary
+        // gates (E-series), not the integrity gate, so wildcard-waive it here rather
+        // than let every test in the file start failing a gate it isn't testing.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()))
 }
 
 fn make_sync() -> NativeSync {

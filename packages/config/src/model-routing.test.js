@@ -64,17 +64,17 @@ describe("model routing config", () => {
 	});
 
 	it("resolves provider defaults used by refarm runtimes", () => {
-		expect(defaultModelForProvider("openai")).toBe("gpt-5.5");
+		expect(defaultModelForProvider("openai")).toBe("gpt-5.6-sol");
 		expect(defaultModelForProvider("openai-codex")).toBe("gpt-5.5");
 		expect(defaultModelForProvider("github-copilot")).toBe("gpt-4o");
-		expect(defaultModelForProvider("anthropic")).toBe("claude-sonnet-4-6");
+		expect(defaultModelForProvider("anthropic")).toBe("claude-sonnet-5");
 		expect(defaultModelForProvider("groq")).toBe("llama-3.3-70b-versatile");
 		expect(defaultModelForProvider("mistral")).toBe("mistral-medium-3-5");
 		expect(defaultModelForProvider("gemini")).toBe("gemini-3-flash-preview");
 		expect(defaultModelForProvider("xai")).toBe("grok-4.3");
 		expect(defaultModelForProvider("deepseek")).toBe("deepseek-v4-flash");
 		expect(defaultModelForProvider("together")).toBe("meta-llama/Llama-3.3-70B-Instruct-Turbo");
-		expect(defaultModelForProvider("openrouter")).toBe("anthropic/claude-sonnet-4.6");
+		expect(defaultModelForProvider("openrouter")).toBe("anthropic/claude-sonnet-5");
 		expect(defaultModelForProvider("ollama")).toBe("llama3.2");
 	});
 
@@ -102,7 +102,7 @@ describe("model routing config", () => {
 			effectiveModelRouteForScope({ modelProvider: "openai" }, "default", { env: {} }),
 		).toEqual({
 			provider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 		});
 		expect(effectiveModelRouteForScope({ modelProvider: "openai" }, "worker", { env: {} })).toEqual(
 			{
@@ -114,7 +114,7 @@ describe("model routing config", () => {
 			effectiveModelRouteForScope(
 				{
 					modelProvider: "openai",
-					modelId: "gpt-5.5",
+					modelId: "gpt-5.6-sol",
 					modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
 				},
 				"worker",
@@ -131,7 +131,7 @@ describe("model routing config", () => {
 			effectiveModelRouteForScope(
 				{
 					modelProvider: "openai",
-					modelId: "gpt-5.5",
+					modelId: "gpt-5.6-sol",
 					modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
 				},
 				"worker",
@@ -152,7 +152,7 @@ describe("model routing config", () => {
 			effectiveModelRouteForScope(
 				{
 					modelProvider: "openai",
-					modelId: "gpt-5.5",
+					modelId: "gpt-5.6-sol",
 				},
 				"default",
 				{
@@ -172,7 +172,7 @@ describe("model routing config", () => {
 			effectiveModelRouteForScope(
 				{
 					modelProvider: "OpenAI",
-					modelId: "gpt-5.5",
+					modelId: "gpt-5.6-sol",
 				},
 				"default",
 				{
@@ -183,12 +183,12 @@ describe("model routing config", () => {
 			),
 		).toEqual({
 			provider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 		});
 	});
 
 	it("formats default provider and scoped model refs", () => {
-		expect(defaultProviderModelRef("openai")).toBe("openai/gpt-5.5");
+		expect(defaultProviderModelRef("openai")).toBe("openai/gpt-5.6-sol");
 		expect(defaultProviderModelRef("openai-codex")).toBe("openai-codex/gpt-5.5");
 		expect(defaultProviderModelId("ollama")).toBe("llama3.2");
 		expect(defaultScopedModelRef("worker", "openai")).toBe("openai/gpt-5.3-codex-spark");
@@ -197,15 +197,15 @@ describe("model routing config", () => {
 
 	it("builds default model route token updates", () => {
 		expect(
-			modelRouteTokenUpdate("default", { provider: "openai", modelId: "gpt-5.5" }, {}),
+			modelRouteTokenUpdate("default", { provider: "openai", modelId: "gpt-5.6-sol" }, {}),
 		).toEqual({
 			modelProvider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 		});
 		expect(
 			modelRouteTokenUpdate(
 				"default",
-				{ provider: "openai", modelId: "gpt-5.5" },
+				{ provider: "openai", modelId: "gpt-5.6-sol" },
 				{
 					modelProvider: "anthropic",
 					modelApiKey: "sk-old",
@@ -214,7 +214,7 @@ describe("model routing config", () => {
 			),
 		).toEqual({
 			modelProvider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 			modelApiKey: undefined,
 			oauthProvider: undefined,
 		});
@@ -224,7 +224,7 @@ describe("model routing config", () => {
 		expect(
 			modelRouteTokenUpdate(
 				"default",
-				{ provider: "openai", modelId: "gpt-5.5" },
+				{ provider: "openai", modelId: "gpt-5.6-sol" },
 				{
 					modelProvider: "OpenAI",
 					modelApiKey: "sk-existing",
@@ -233,7 +233,7 @@ describe("model routing config", () => {
 			),
 		).toEqual({
 			modelProvider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 		});
 	});
 
@@ -242,11 +242,11 @@ describe("model routing config", () => {
 			modelRouteTokenUpdate(
 				"worker",
 				{ provider: "openai", modelId: "gpt-5.3-codex-spark" },
-				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ modelProvider: "openai", modelId: "gpt-5.6-sol" },
 			),
 		).toEqual({
 			modelProvider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 			modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
 		});
 		expect(
@@ -255,13 +255,13 @@ describe("model routing config", () => {
 				{ provider: "anthropic", modelId: "claude-sonnet-4-6" },
 				{
 					modelProvider: "openai",
-					modelId: "gpt-5.5",
+					modelId: "gpt-5.6-sol",
 					modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
 				},
 			),
 		).toEqual({
 			modelProvider: "openai",
-			modelId: "gpt-5.5",
+			modelId: "gpt-5.6-sol",
 			modelRoutes: {
 				worker: "openai/gpt-5.3-codex-spark",
 				monitor: "anthropic/claude-sonnet-4-6",
@@ -270,9 +270,9 @@ describe("model routing config", () => {
 	});
 
 	it("infers providers from known model prefixes", () => {
-		expect(inferProviderFromModelId("gpt-5.5")).toBe("openai");
+		expect(inferProviderFromModelId("gpt-5.6-sol")).toBe("openai");
 		expect(inferProviderFromModelId("gpt-5.3-codex-spark")).toBe("openai-codex");
-		expect(inferProviderFromModelId("claude-sonnet-4-6")).toBe("anthropic");
+		expect(inferProviderFromModelId("claude-sonnet-5")).toBe("anthropic");
 		expect(inferProviderFromModelId("gemini-3-flash-preview")).toBe("gemini");
 		expect(inferProviderFromModelId("grok-4.3")).toBe("xai");
 		expect(inferProviderFromModelId("deepseek-v4-flash")).toBe("deepseek");
@@ -295,7 +295,10 @@ describe("model routing config", () => {
 
 	it("classifies subscription providers with runtime adapters separately", () => {
 		expect(isRuntimeSubscriptionModelProvider("openai-codex")).toBe(true);
-		expect(isRuntimeSubscriptionModelProvider("github-copilot")).toBe(false);
+		// Was `false` until the host gained a Copilot arm (772480bd) and dispatched through it for
+		// real. A provider is listed here because the RUNTIME can reach it, so this line moves when
+		// the adapter lands — not when the provider is merely known.
+		expect(isRuntimeSubscriptionModelProvider("github-copilot")).toBe(true);
 		expect(isRuntimeSubscriptionModelProvider("openai")).toBe(false);
 	});
 

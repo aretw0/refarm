@@ -1,0 +1,21 @@
+{
+  "proofId": "local-surface.white-label-operator-proof",
+  "packageName": "@refarm.dev/local-surface",
+  "consumer": "coop-vault",
+  "consumerCommit": "76060a8aa63a16283923f3e40f811393996722ca",
+  "consumerDirty": false,
+  "manifestSha256": "5da8e0171e83818e2cd2881a52f28996a522d8e9dcd9f1ba5f46ae49679b8acd",
+  "generatedAt": "2026-08-23T16:51:12.107Z",
+  "commands": [
+    "npm run test:surface",
+    "npm run surface:build"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+  "notes": [
+    "Segundo consumidor do canal. Primeiro a instalar com npm e overrides, nao pnpm.",
+    "Artefatos: manifest local-surface.v1, HTML com tokens do DS, launch plan e relatorio quality:v1 com zero findings.",
+    "O alvo do packet 2026-07-26 nomeia vault-seed. O packet e artefato datado e nao foi editado: os recibos citam seu sha256. A politica vigente ja e neutra e o proximo packet nascera com ela."
+  ]
+}

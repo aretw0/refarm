@@ -195,7 +195,17 @@ export class WasiImports {
 				return "ok";
 			},
 			"get-node": (_id: string) => "{}",
-			"query-nodes": (_nodeType: string, _limit: number) => [],
+			// This bridge is write-only for nodes: `store-node` forwards to the injected
+			// `storeNode` callback, but nothing here ever reads it back — `get-node` above
+			// is unconditionally "{}" regardless of what was stored. So `stored: 0` is not
+			// a fabricated count against a real store; it is the honest size of the (empty)
+			// read side of this bridge. A guest that needs `query-nodes` to see real data
+			// must run on the Rust host, which owns the actual store.
+			"query-nodes": (_nodeType: string, _limit: number) => ({
+				nodes: [],
+				stored: 0,
+				truncated: false,
+			}),
 			"request-permission": (_cap: string, _reason: string) => true,
 			"get-identity": () => ({
 				identityType: "guest",

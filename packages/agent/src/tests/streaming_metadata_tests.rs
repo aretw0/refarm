@@ -9,7 +9,8 @@ fn final_stream_chunk_metadata_marks_subscription_as_not_billable_api() {
         provider: "openai-codex",
         tokens_in: 1_000,
         tokens_out: 10,
-        tokens_cached: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
         partials_present: false,
         sequence: 0,
     });
@@ -29,7 +30,8 @@ fn final_stream_chunk_metadata_keeps_api_billable_estimate() {
         provider: "openai",
         tokens_in: 1_000,
         tokens_out: 10,
-        tokens_cached: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
         partials_present: false,
         sequence: 0,
     });
@@ -58,7 +60,8 @@ fn final_marker_is_empty_when_partials_present() {
         provider: "openai",
         tokens_in: 100,
         tokens_out: 10,
-        tokens_cached: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
         partials_present: true,
         sequence: 3,
     });
@@ -81,7 +84,8 @@ fn final_carries_whole_answer_when_no_partials() {
         provider: "openai",
         tokens_in: 100,
         tokens_out: 10,
-        tokens_cached: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
         partials_present: false,
         sequence: 0,
     });

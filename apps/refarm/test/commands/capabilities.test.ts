@@ -182,7 +182,7 @@ describe("capabilities command", () => {
 						discoveryPackage: "@refarm.dev/cli",
 						discoverySubpath: "@refarm.dev/cli/capability-index",
 						publicationState: "boundary-review",
-						consumerInstallPolicy: "not-vault-seed-ready",
+						consumerInstallPolicy: "not-consumer-ready",
 						runtimeExecutionState: "private",
 					},
 					summary: [
@@ -241,7 +241,7 @@ describe("capabilities command", () => {
 		expect(output).toContain("Supply preflight");
 		expect(output).toContain("mode: plan-only; candidate: 3, internal: 3, hold: 5");
 		expect(output).toContain(
-			"boundary: @refarm.dev/cli/capability-index; boundary-review; not-vault-seed-ready; runtime private",
+			"boundary: @refarm.dev/cli/capability-index; boundary-review; not-consumer-ready; runtime private",
 		);
 		expect(output).toContain(
 			"proofs: blocked targets 11; with proofs 4; unique proof targets 8; budget contracts 1",

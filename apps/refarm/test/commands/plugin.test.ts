@@ -1,4 +1,6 @@
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installedPluginWasmPath } from "../../src/commands/plugin-install-path.js";
 
 // Hoisted mocks — must be defined before any imports that use these modules
 const {
@@ -95,6 +97,7 @@ import {
 	createPluginCapabilityGroup,
 	pluginCapabilityHooks,
 } from "../../src/commands/plugin-capability.js";
+import { pluginsBaseDir } from "../../src/commands/plugin-shared.js";
 
 // The `plugin` command is now a tri-surface CapabilityGroup; drive its PROJECTED
 // commander surface so these byte-stability assertions prove the group produces
@@ -309,10 +312,17 @@ describe("plugin install", () => {
 
 	it("prints install results as JSON without operator log lines", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
-		mockReadFileSync
-			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
-			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" }));
+		// Keyed by PATH, not by call order: the install path now reads refarm's own config
+		// before it reads anything of the plugin's, and a queue of `mockReturnValueOnce`
+		// hands those reads the plugin's bytes — leaving the real reads with `undefined`.
+		// Answering per path is order-proof and says what each read is actually for.
+		mockReadFileSync.mockImplementation((target: unknown) => {
+			const file = String(target);
+			if (file.endsWith(".wasm")) return Buffer.from("wasm-bytes");
+			if (file.endsWith("/package.json")) return JSON.stringify({ version: "0.4.1" });
+			if (file.endsWith(".json")) return JSON.stringify({ id: "@refarm/agent", version: "0.4.1" });
+			return "{}";
+		});
 		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 		mockExistsSync.mockReturnValue(true);
 		mockDigest.mockReturnValue("deadbeef");
@@ -332,10 +342,27 @@ describe("plugin install", () => {
 					version: "0.4.1",
 					packageSource: "node_modules",
 					packageDir: "/fake/node_modules/@refarm.dev/agent",
+					// WHERE it landed — the directory the daemon loads from. Present on every
+					// outcome, including `cached`, because a cached result is exactly the case
+					// where knowing which directory was consulted matters most: two installers
+					// once wrote two directories and this report could not tell them apart.
+					installedPath: installedPluginWasmPath("@refarm/agent"),
 					bytes: 10,
 					integrity: "sha256-deadbeef",
 				},
 			],
+			// The same pass materialises the runtime's rate catalog into the sovereign dir.
+			// `existsSync` is mocked true here, so a catalog "already exists" — and this
+			// fixture never wrote a provenance record for it, so the pass refuses to guess
+			// whether the file is its own or a node's correction. It KEEPS the file and says
+			// so, which is the whole point: this step never overwrites what it did not write.
+			modelRateCatalog: {
+				status: "unknown",
+				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
+				message: expect.stringContaining("no provenance record"),
+			},
 			command: "plugin",
 			operation: "install",
 			ok: true,
@@ -351,6 +378,9 @@ describe("plugin install", () => {
 		mockRequireResolve.mockImplementation(() => {
 			throw new Error("MODULE_NOT_FOUND");
 		});
+		// Nothing is on disk in this fixture — stated rather than inherited, so the
+		// catalog step's answer below is the one this test means.
+		mockExistsSync.mockReturnValue(false);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -368,6 +398,17 @@ describe("plugin install", () => {
 					message: "package @refarm.dev/agent not found in node_modules or workspace",
 				},
 			],
+			// Nothing resolves in this fixture, the catalog package included. It reports the
+			// miss instead of failing the install: a node without a catalog still runs, and
+			// prices from the agent's built-in table.
+			modelRateCatalog: {
+				status: "unresolved",
+				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
+				message:
+					"package @refarm.dev/model-catalog-v1 not found in node_modules or workspace",
+			},
 			command: "plugin",
 			operation: "install",
 			ok: false,
@@ -417,9 +458,23 @@ describe("plugin install", () => {
 					version: "0.4.1",
 					packageSource: "node_modules",
 					packageDir: "/fake/node_modules/@refarm.dev/agent",
+					// The cached case is the one this field exists for. "already up-to-date" was
+					// TRUE about a directory nobody loaded, and without a path beside it there was
+					// no way to see that from the report.
+					installedPath: installedPluginWasmPath("@refarm/agent"),
 					message: "already up-to-date",
 				},
 			],
+			// Same fixture, same answer as `install`: a catalog is on disk with nothing
+			// recording who wrote it, so `update` keeps it and reports the ambiguity rather
+			// than resolving it in either direction.
+			modelRateCatalog: {
+				status: "unknown",
+				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
+				message: expect.stringContaining("no provenance record"),
+			},
 			command: "plugin",
 			operation: "install",
 			ok: true,
@@ -525,16 +580,41 @@ describe("plugin status", () => {
 		vi.unstubAllGlobals();
 	});
 
+	/** Configure the mocked `node:fs` so `readInstalledPlugins(pluginsBaseDir())` sees exactly
+	 *  these trees — the CLI's disk scan, which `status` now consults directly (the daemon
+	 *  receives explicit paths and never scans). Reset in this describe's `afterEach` so the
+	 *  fixture never leaks into a test that didn't ask for it. */
+	function mockInstalledTrees(entries: Array<{ dirName: string; id: string }>): void {
+		mockExistsSync.mockReturnValue(true);
+		mockReaddirSync.mockReturnValue(
+			entries.map((e) => ({ name: e.dirName, isDirectory: () => true })) as never[],
+		);
+		mockReadFileSync.mockImplementation((input: unknown) => {
+			const value = String(input).replace(/\\/g, "/");
+			const match = entries.find((e) => value.includes(`/${e.dirName}/plugin.json`));
+			return JSON.stringify({ id: match?.id ?? "unknown" });
+		});
+	}
+
+	afterEach(() => {
+		mockExistsSync.mockReset();
+		mockReaddirSync.mockReset().mockReturnValue([]);
+		mockReadFileSync.mockReset();
+	});
+
 	it("shows runtime plugin load state", async () => {
+		const agentDir = path.join(pluginsBaseDir(), "refarm_agent");
+		mockInstalledTrees([{ dirName: "refarm_agent", id: "@refarm/agent" }]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
-					loaded: ["@refarm/agent"],
-					local: [],
-					known: ["@refarm/agent"],
+					requested: [
+						{ id: "agent", path: path.join(agentDir, "plugin.wasm"), loaded: true, because: null },
+					],
+					loaded: ["agent"],
+					defaultResponder: "agent",
 				}),
 			}),
 		);
@@ -550,15 +630,25 @@ describe("plugin status", () => {
 	});
 
 	it("guides when the runtime agent plugin is installed but not loaded", async () => {
+		const agentDir = path.join(pluginsBaseDir(), "refarm_agent");
+		mockInstalledTrees([{ dirName: "refarm_agent", id: "@refarm/agent" }]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
+					// Requested (the daemon was handed this tree's path) but the load failed —
+					// installed-and-not-loaded, the state that used to have no surface at all.
+					requested: [
+						{
+							id: null,
+							path: path.join(agentDir, "plugin.wasm"),
+							loaded: false,
+							because: "wasm parse error: unexpected end of file",
+						},
+					],
 					loaded: [],
-					local: [],
-					known: ["@refarm/agent"],
+					defaultResponder: null,
 				}),
 			}),
 		);
@@ -575,15 +665,30 @@ describe("plugin status", () => {
 	});
 
 	it("prints runtime plugin load state as JSON", async () => {
+		const baseDir = pluginsBaseDir();
+		const agentDir = path.join(baseDir, "refarm_agent");
+		const ghostDir = path.join(baseDir, "refarm_ghost");
+		mockInstalledTrees([
+			{ dirName: "refarm_agent", id: "@refarm/agent" },
+			// Installed, but never requested — the tree the old one-variable host could not
+			// distinguish from "installed and loaded" (ISS-167).
+			{ dirName: "refarm_ghost", id: "@refarm/ghost" },
+		]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
+					requested: [
+						{
+							id: "agent",
+							path: path.join(agentDir, "plugin.wasm"),
+							loaded: false,
+							because: null,
+						},
+					],
 					loaded: [],
-					local: ["@local/tool"],
-					known: ["@refarm/agent", "@local/tool"],
+					defaultResponder: null,
 				}),
 			}),
 		);
@@ -598,9 +703,15 @@ describe("plugin status", () => {
 			available: boolean;
 			plugins: Array<{
 				id: string;
-				installed: boolean;
+				runtimeId: string;
+				manifestId: string | null;
+				dir: string | null;
+				requested: boolean;
 				loaded: boolean;
-				local: boolean;
+				installed: boolean;
+				integrity: string | null;
+				known: boolean;
+				development: boolean;
 			}>;
 			nextAction?: string;
 			nextActions?: string[];
@@ -611,18 +722,58 @@ describe("plugin status", () => {
 		expect(payload.operation).toBe("status");
 		expect(payload.ok).toBe(false);
 		expect(payload.available).toBe(true);
+		// FIVE FACTS. The ghost row proves `installed` and `loaded` can disagree (they were one
+		// variable under the old host) — installed via the CLI's disk scan, never requested by
+		// the daemon, so never loaded either. `@refarm/lsp-code-ops` proves `known` survives on
+		// its own row: it is part of this app's real declared set (knownPluginDescriptors) and
+		// this fixture never installs or requests it, so it appears `known: true,
+		// installed: false` — declared-and-not-installed, never a placeholder pretending to be
+		// installed.
 		expect(payload.plugins).toEqual([
 			{
 				id: "@refarm/agent",
-				installed: true,
+				runtimeId: "agent",
+				manifestId: "@refarm/agent",
+				dir: agentDir,
+				requested: true,
 				loaded: false,
-				local: false,
+				installed: true,
+				integrity: "absent",
+				known: true,
+				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 			{
-				id: "@local/tool",
-				installed: false,
+				id: "@refarm/ghost",
+				runtimeId: "ghost",
+				manifestId: "@refarm/ghost",
+				dir: ghostDir,
+				requested: false,
 				loaded: false,
-				local: true,
+				installed: true,
+				integrity: "absent",
+				known: false,
+				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
+			},
+			{
+				id: "@refarm/lsp-code-ops",
+				runtimeId: "lsp-code-ops",
+				manifestId: "@refarm/lsp-code-ops",
+				dir: null,
+				requested: false,
+				loaded: false,
+				installed: false,
+				integrity: null,
+				known: true,
+				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin reload agent --json");

@@ -23,8 +23,8 @@
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
-		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/credentials-contract-v1": "workspace:*",
+		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
 		"@refarm.dev/wallet": "workspace:*"
@@ -35,6 +35,6 @@
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@types/node": "catalog:",
-		"astro": "^7.0.0"
+		"astro": "7.2.8"
 	}
 }

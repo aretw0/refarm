@@ -113,6 +113,23 @@ describe("plugin install from git — clone a prepared repo, then review-first i
 		expect(report.pluginId).toBe("@example/git-plugin");
 	});
 
+	it("installs a prepared plugin from a monorepo subdirectory", async () => {
+		const { clone } = stubClone({ manifestSubdir: "packages/acme-plugin/dist" });
+		const report = (await install({
+			cloneRepo: clone,
+			subdir: "packages/acme-plugin",
+		})) as ExtensionInstallReport;
+		expect(report.ok).toBe(true);
+		expect(report.pluginId).toBe("@example/git-plugin");
+	});
+
+	it("refuses a monorepo subdirectory that escapes the clone", async () => {
+		const { clone } = stubClone();
+		const report = await install({ cloneRepo: clone, subdir: "../outside" });
+		expect(report.ok).toBe(false);
+		expect((report as { error: string }).error).toBe("git_subdir_invalid");
+	});
+
 	it("fails loudly when the clone fails", async () => {
 		const clone: CloneRepo = async () => {
 			throw new Error("fatal: repository not found");

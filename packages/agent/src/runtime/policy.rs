@@ -23,6 +23,99 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
     None
 }
 
+/// Stop a run whose CUMULATIVE token spend has passed its declared ceiling.
+/// Distinct from `context_limit_error`, which refuses a single prompt too large
+/// for the context window. This one is the budget; that one is the container.
+pub(crate) fn cumulative_limit_error(spent: u32, limit: Option<u32>) -> Option<ReactResult> {
+    let limit = limit?;
+    if spent <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento de tokens esgotado ({spent} > {limit} tokens acumulados)"
+    )))
+}
+
+/// Stop a run whose estimated spend has passed its declared ceiling. Returns
+/// None outside `api` pricing mode: under a subscription or a local model the
+/// estimate is a structural zero, and a ceiling that can never bind would teach
+/// the operator to trust a guard that is not guarding. The token ceiling is what
+/// holds the line there.
+pub(crate) fn spend_limit_error(
+    provider: &str,
+    spent_usd: f64,
+    limit_usd: Option<f64>,
+) -> Option<ReactResult> {
+    if crate::pricing_mode_for_provider(provider) != "api" {
+        return None;
+    }
+    let limit = limit_usd?;
+    if spent_usd <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento estimado esgotado (US$ {spent_usd:.4} > US$ {limit:.4})"
+    )))
+}
+
+/// Cumulative usage across every turn the CURRENTLY LOADED agent instance has
+/// processed — the counter F6 found missing. Distinct from `UsageTotals`
+/// (`provider_runtime`), which folds usage WITHIN one completion's own
+/// tool-call round trips and answers "what did THIS turn cost"; `RunTotals`
+/// answers "what has this run cost so far", across SEPARATE turns (separate
+/// calls into the react loop). Merging the two would put two different
+/// lifetimes behind one shape — the exact "two things sharing one shape"
+/// defect this program has already found repeatedly. Kept minimal on purpose:
+/// only what `cumulative_limit_error`/`spend_limit_error` need to check —
+/// a running token sum and a running estimated-USD sum.
+#[derive(Default)]
+pub(crate) struct RunTotals {
+    tokens: u32,
+    spend_usd: f64,
+    /// How many DISPATCHES this run has folded in so far. Counted here, not
+    /// somewhere new, because `add_turn` is already the one place a turn's usage
+    /// is known to have completed and folded — the turn and its cost are the
+    /// same event.
+    ///
+    /// Not the "4" of *"died at 4/25"*: that numerator counts completion-loop
+    /// STEPS within one dispatch and is accumulated by
+    /// `provider_runtime::loop_progress`. Nothing declares a maximum number of
+    /// turns, so this count travels alone, under its own name, and is never
+    /// paired with a ceiling that measures something else.
+    turns: u32,
+}
+
+impl RunTotals {
+    /// Fold one turn's token usage into the running total, and count the turn
+    /// itself. Saturating: a run that would overflow `u32` stays pinned at
+    /// `u32::MAX` (still safely past any real ceiling) rather than wrapping
+    /// back under one it already blew past.
+    pub(crate) fn add_turn(&mut self, tokens_in: u32, tokens_out: u32) {
+        self.tokens = self.tokens.saturating_add(tokens_in).saturating_add(tokens_out);
+        self.turns = self.turns.saturating_add(1);
+    }
+
+    /// The cumulative token total across every turn folded in so far.
+    pub(crate) fn total(&self) -> u32 {
+        self.tokens
+    }
+
+    /// How many turns (dispatches) this run has completed as of the last fold.
+    pub(crate) fn turns(&self) -> u32 {
+        self.turns
+    }
+
+    /// Fold one turn's estimated USD spend into the running total.
+    pub(crate) fn add_spend_usd(&mut self, usd: f64) {
+        self.spend_usd += usd;
+    }
+
+    /// The cumulative estimated USD spend across every turn folded in so far.
+    pub(crate) fn total_usd(&self) -> f64 {
+        self.spend_usd
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn task_context_for_prompt() -> Option<String> {
     let n = std::env::var("MODEL_TASK_CONTEXT_TURNS")
@@ -34,6 +127,7 @@ fn task_context_for_prompt() -> Option<String> {
     }
     let raw = crate::plugin::host::tractor_bridge::query_nodes("Task", n as u32).ok()?;
     let tasks: Vec<serde_json::Value> = raw
+        .nodes
         .iter()
         .filter_map(|r| serde_json::from_str(r).ok())
         .collect();

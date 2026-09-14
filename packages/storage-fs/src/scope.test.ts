@@ -68,3 +68,32 @@ describe("@refarm.dev/storage-fs scope resolution", () => {
 		]);
 	});
 });
+
+// ISS-050. `scopeRoot`'s user tier read `options.userHome ?? homedir()`, so every consumer of
+// `scopedAssetsDir` that did not pass a home silently landed on the OS home. Confirmed on disk: a
+// plugin install wrote the working tree's agent.wasm into the OPERATOR's real ~/.refarm/assets/
+// while a sandbox home was declared — which is why HOME became the sandbox launcher's sixth
+// isolated axis rather than being assumed to follow REFARM_HOME.
+//
+// The org tier in this same function already refuses rather than defaulting (MissingOrgRootError).
+// The user tier now does the same: "the fix is removing the default, not removing the concept" —
+// a caller that genuinely wants the OS home says so, and the ones that wanted the declared home
+// stop getting the other by accident.
+describe("the user tier refuses to guess a home (ISS-050)", () => {
+	it("throws rather than silently landing on the OS home", () => {
+		expect(() => orderedScopeStorePaths("config.json", {})).toThrow(/userHome/);
+	});
+
+	it("resolves under the home it is given", () => {
+		const paths = orderedScopeStorePaths("config.json", { userHome: "/declared/base" });
+		const user = paths.find((entry) => entry.scope === "user");
+		expect(user?.path).toBe("/declared/base/.refarm/config.json");
+	});
+
+	it("still drops the org tier when no org root is supplied, rather than erroring", () => {
+		// The org tier is opt-in and its absence drops the layer; only an explicitly REQUESTED org
+		// scope throws. Pinned here so the user tier's new refusal is not read as a change to it.
+		const scopes = orderedScopeStorePaths("config.json", { userHome: "/h" }).map((e) => e.scope);
+		expect(scopes).toEqual(["workspace", "user"]);
+	});
+});

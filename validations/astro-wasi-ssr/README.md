@@ -35,7 +35,7 @@ Task 2 status: blocked at Astro server bundle evaluation, after WIT resolution.
 The fixture now vendors the minimal official WASI v0.2.3 WIT graph needed by
 `wasi:http/incoming-handler@0.2.3`, so local WIT resolution is green. The
 current blocker is the generated Astro server bundle's Node surface:
-ComponentizeJS starts evaluating `dist/server/index.mjs` and fails on
+ComponentizeJS starts evaluating `dist/server/entry.mjs` and fails on
 `node:module`. Static inspection also shows `process`, `Buffer`, and `sharp`.
 The package script is bounded by `timeout 45s` so this validation cannot pin
 the development container if ComponentizeJS/Wizer behavior drifts. Evidence:

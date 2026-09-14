@@ -1,11 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { BaseSurfaceModelInput } from "@refarm.dev/operator-state";
-import { resolveBaseSurfaceStatus } from "../../src/commands/base-surface-status.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+	nearestProjectRoot,
+	resolveBaseSurfaceStatus,
+} from "../../src/commands/base-surface-status.js";
 
 describe("resolveBaseSurfaceStatus", () => {
+	it("does not treat an operational node root as all descendant workspaces", () => {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-node-root-"));
+		try {
+			const nestedRepo = path.join(home, "git", "private-workspace");
+			fs.mkdirSync(path.join(nestedRepo, ".git"), { recursive: true });
+			expect(nearestProjectRoot(home, home)).toBeNull();
+			expect(nearestProjectRoot(path.join(nestedRepo, "src"), home)).toBe(nestedRepo);
+		} finally {
+			fs.rmSync(home, { recursive: true, force: true });
+		}
+	});
 	it("adapts runtime, model, and health payloads into the base model", async () => {
 		const model = await resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 			resolveRuntime: vi.fn().mockResolvedValue({
 				command: "runtime",
 				operation: "status",
@@ -135,6 +153,7 @@ describe("resolveBaseSurfaceStatus", () => {
 		});
 
 		const pending = resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 			resolveRuntime: runtime,
 			resolveModel: model,
 			resolveHealth: health,
@@ -149,5 +168,205 @@ describe("resolveBaseSurfaceStatus", () => {
 		await pending;
 
 		expect(calls).toEqual(["runtime:start", "runtime:end", "model", "health"]);
+	});
+
+	it("adiciona unit de atenção do operador quando resolver retorna escopo", async () => {
+		const model = await resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
+			resolveRuntime: vi.fn().mockResolvedValue({
+				command: "runtime",
+				operation: "status",
+				ok: true,
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				ready: true,
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveModel: vi.fn().mockResolvedValue({
+				command: "model",
+				operation: "current",
+				ok: true,
+				current: { ref: "openai-codex/gpt-5.3-codex-spark" },
+				credential: { state: "silo-oauth" },
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveHealth: vi.fn().mockResolvedValue({
+				command: "health",
+				operation: "audit",
+				ok: true,
+				issueCount: 0,
+				recommendations: [],
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveOperatorAttention: vi.fn().mockResolvedValue({
+				scope: "connection-up:ovpn-serpro",
+				armed: false,
+				windowMs: 60000,
+				expiresAt: null,
+			}),
+		}, {});
+
+		expect(model.units.map((unit) => unit.id)).toEqual([
+			"runtime",
+			"model",
+			"health",
+			"operator-attention",
+		]);
+		expect(model.units[3]).toMatchObject({
+			id: "operator-attention",
+			state: "blocked",
+			severity: "warning",
+			summary: "Canal de atenção ainda não armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+		);
+	});
+
+	it("encaminha options explícitas de atenção para o resolver opcional", async () => {
+		const resolveOperatorAttention = vi.fn().mockResolvedValue(null);
+
+		await resolveBaseSurfaceStatus(
+			{
+				resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
+				resolveRuntime: vi.fn().mockResolvedValue({
+					command: "runtime",
+					operation: "status",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveModel: vi.fn().mockResolvedValue({
+					command: "model",
+					operation: "current",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveHealth: vi.fn().mockResolvedValue({
+					command: "health",
+					operation: "audit",
+					ok: true,
+					issueCount: 0,
+					recommendations: [],
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveOperatorAttention,
+			},
+			{
+				operatorAttentionScope: "connection-up:mobile",
+				operatorAttentionWindowMs: 120000,
+				operatorAttentionProfile: "mobile-ready",
+			},
+		);
+
+		expect(resolveOperatorAttention).toHaveBeenCalledWith({
+			operatorAttentionScope: "connection-up:mobile",
+			operatorAttentionWindowMs: 120000,
+			operatorAttentionProfile: "mobile-ready",
+		});
+	});
+
+	it("aplica defaults do attention-profile no resolver interno", async () => {
+		const model = await resolveBaseSurfaceStatus(
+			{
+				resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
+				resolveRuntime: vi.fn().mockResolvedValue({
+					command: "runtime",
+					operation: "status",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveModel: vi.fn().mockResolvedValue({
+					command: "model",
+					operation: "current",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveHealth: vi.fn().mockResolvedValue({
+					command: "health",
+					operation: "audit",
+					ok: true,
+					issueCount: 0,
+					recommendations: [],
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+			},
+			{ operatorAttentionProfile: "cross-device-handoff" },
+		);
+
+		expect(model.units.map((unit) => unit.id)).toContain("operator-attention");
+		expect(model.units.find((unit) => unit.id === "operator-attention")).toMatchObject({
+			state: "blocked",
+			summary: "Canal de atenção ainda não armado para 'attention:cross-device-handoff'.",
+		});
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'attention:cross-device-handoff' --prepare-only --window-ms 120000 --json",
+		);
+	});
+
+	it("falha com profile desconhecido", async () => {
+		await expect(
+			resolveBaseSurfaceStatus(
+				{
+					resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
+					resolveRuntime: vi.fn().mockResolvedValue({
+						command: "runtime",
+						operation: "status",
+						ok: true,
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+					resolveModel: vi.fn().mockResolvedValue({
+						command: "model",
+						operation: "current",
+						ok: true,
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+					resolveHealth: vi.fn().mockResolvedValue({
+						command: "health",
+						operation: "audit",
+						ok: true,
+						issueCount: 0,
+						recommendations: [],
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+				},
+				{ operatorAttentionProfile: "unknown-profile" },
+			),
+		).rejects.toThrow(/Unknown --attention-profile/);
 	});
 });

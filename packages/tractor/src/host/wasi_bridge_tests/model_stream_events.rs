@@ -179,10 +179,20 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert!(rows
         .iter()
         .all(|row| row.source_plugin.as_deref() == Some("agent")));
-    let payloads: Vec<serde_json::Value> = rows
+    // What this test actually asserts is a SET of (sequence -> content) pairs this call
+    // persisted, not the order `query_nodes` happens to read them back in. `query_nodes`
+    // is newest-first with `id DESC` as the tiebreak (see its own doc), and both chunks'
+    // ids are random UUIDs (`stream_agent_response_chunk_id`) minted microseconds apart —
+    // so which one sorts first is either an `id DESC` coin flip (same-second write) or
+    // genuinely "b before a" (crossed a second, and b really is newer). Sorting by the
+    // chunk's own `sequence` field — its real identity here — makes the assertion match
+    // what the test means, the same idiom already used by this module's siblings
+    // (`model_stream_contract.rs`, `connection_frames.rs`).
+    let mut payloads: Vec<serde_json::Value> = rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
+    payloads.sort_by_key(|payload| payload["sequence"].as_u64().unwrap());
     assert_eq!(payloads[0]["sequence"], 0);
     assert_eq!(payloads[0]["content"], "a");
     assert_eq!(payloads[1]["sequence"], 1);
@@ -193,10 +203,11 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert!(stream_rows
         .iter()
         .all(|row| row.source_plugin.as_deref() == Some("agent")));
-    let stream_payloads: Vec<serde_json::Value> = stream_rows
+    let mut stream_payloads: Vec<serde_json::Value> = stream_rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
+    stream_payloads.sort_by_key(|payload| payload["sequence"].as_u64().unwrap());
     assert_eq!(
         stream_payloads[0]["stream_ref"],
         "urn:tractor:stream:response:prompt-abc"
@@ -256,19 +267,24 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(last_sequence, Some(5));
     assert_eq!(stored_chunks, 2);
     let rows = sync.query_nodes("Response").unwrap();
-    let payloads: Vec<serde_json::Value> = rows
+    // Same reasoning as `..._persists_partial_nodes` above: this asserts which
+    // `sequence` carries which fact, not `query_nodes`'s read order (random-UUID
+    // `id DESC` tiebreak) — sort by `sequence` before indexing.
+    let mut payloads: Vec<serde_json::Value> = rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
+    payloads.sort_by_key(|payload| payload["sequence"].as_u64().unwrap());
     assert_eq!(payloads[0]["sequence"], 4);
     assert_eq!(payloads[1]["sequence"], 5);
 
     let stream_rows = sync.query_nodes("StreamChunk").unwrap();
     assert_eq!(stream_rows.len(), 3, "two partial chunks plus final marker");
-    let stream_payloads: Vec<serde_json::Value> = stream_rows
+    let mut stream_payloads: Vec<serde_json::Value> = stream_rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
+    stream_payloads.sort_by_key(|payload| payload["sequence"].as_u64().unwrap());
     assert_eq!(stream_payloads[0]["sequence"], 4);
     assert_eq!(stream_payloads[0]["is_final"], false);
     assert_eq!(stream_payloads[1]["sequence"], 5);

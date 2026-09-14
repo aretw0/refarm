@@ -1,7 +1,7 @@
 # ADR-080: The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle
 
 **Status**: Accepted
-**Progress**: Implemented + tested. `scripts/vault-seed-ready-handoff.mjs` emits a mandatory `manifest.json` (with `generatedAt` + `sourceGitSha`) as the packet's source of truth, derives `consumerProofs` from release policy, and supports `--prune-extra`; `scripts/ci/test-vault-seed-ready-handoff.mjs` passes (14/0). The one open item — receipts as plain JSON — is CONDITIONAL by design (only if a downstream tranche runs before publication; the preferred resolution is the publish decision itself) and has not been triggered, so it stays a documented conditional under the capped scope below.
+**Progress**: Implemented + tested. `scripts/vault-seed-ready-handoff.mjs` emits a mandatory `manifest.json` (with `generatedAt` + `sourceGitSha`) as the packet's source of truth, derives `consumerProofs` from release policy, and supports `--prune-extra`; `scripts/ci/test-vault-seed-ready-handoff.mjs` passes (14/0). The conditional item — receipts as plain JSON — was triggered on 2026-08-23: a downstream tranche ran before publication, so the official `vault-seed` checkout emitted 16 receipts for the 2026-07-26 packet (`scripts/emit_refarm_proof_receipts.mjs`, consumer commit `5aa0869`). 7 of the 23 proofs have no local proof in that consumer and correctly have no receipt. Emitting them exposed one gap the decision had not accounted for — `.refarm/` is fully gitignored, so a receipt would not survive a reclone while the prose it replaces would; `manifest.json`/`manifest.md` and `receipts/` are now tracked, tarballs and keys are not.
 **Scope**: This is deliberately **temporary scaffolding** ("puxadinho"), not product surface. It
 exists only so the official `vault-seed` checkout can validate blocks while Refarm is not yet on
 npm/cargo. Investment in it is capped (see Sunset) — no growing test suite, no new packages, no
@@ -34,9 +34,14 @@ failure classes have already occurred or are structurally open:
    bytes than the previous manifest-bearing packet under identical names/versions. This is exactly
    the revendor footgun the manifest exists to prevent, produced by the pipeline itself, because
    manifest emission is opt-in (`--out`) and nothing validates a packet directory's completeness.
-2. **Unverifiable downstream "done" (open).** `consumerProofs` names what the official `vault-seed`
-   checkout must prove, but no receipt ever returns. Completed proofs (T2/T3) exist only as prose in
-   `docs/VAULT_SEED_CONVERGENCE.md` — prose that has already drifted from disk once.
+2. **Unverifiable downstream "done" (closed, 2026-08-23).** `consumerProofs` names what the
+   official `vault-seed` checkout must prove, and until 2026-08-23 no receipt ever returned —
+   completed proofs existed only as prose in `docs/VAULT_SEED_CONVERGENCE.md`, prose that had
+   already drifted from disk once. The consumer now emits a receipt per proven `proofId` carrying
+   the consumer commit, the manifest sha256, the exact commands and the result. The proofId-to-test
+   link is read from both sides rather than kept as a hand-maintained map: each contract test
+   already names the packages it consumes, and each proof already carries `packageName`. Proofs
+   without a local proof are reported, not silenced.
 3. **Split canon (closed, 2026-07-03).** Consumer-pull metadata originally lived both in the
    script's hardcoded map and inline in `refarm.config.json` package profiles. The release policy is
    now canonical: every selected `vault-seed-ready` profile carries complete `consumerPull`
@@ -167,6 +172,55 @@ npm/cargo publication of the `vault-seed-ready` selection:
 
 Until then, the investment cap holds: bug fixes yes; new conventions, suites, or packages around
 the handoff lane, no.
+
+## Update (2026-09-08): the package cap did not hold, and the sunset is being built
+
+This decision capped investment in the lane: "no growing test suite, **no new
+packages**, no long-lived conventions beyond what already shipped", and the
+Sunset section closes with "bug fixes yes; new conventions, suites, or packages
+around the handoff lane, no."
+
+Measured against the repository, that cap did not hold — and it did not fail
+quietly. Each departure is a deliberate commit with its own evidence:
+
+| Date | Commit | What the cap forbade |
+| --- | --- | --- |
+| 2026-08-12 | `1220b2de` `refactor(release): vault-seed-ready becomes consumer-ready` | a long-lived convention |
+| 2026-08-16 | `a5aae8f3` `content-projection is consumer-proven` | a new package |
+| 2026-08-28 | `cc61342e` `vault-contract-v1 enters the consumer-ready selection` | a new package |
+| 2026-08-29 | `0efcfd4c` `provenance-contract-v1 enters the consumer-ready selection` | a new package |
+| 2026-08-30 | `50539198` `std, node-contract-v1 and plugin-manifest enter consumer-ready` | three new packages |
+
+The selection grew from the 23 packages this ADR was written around to 28. The
+lane also acquired an install smoke, per-consumer receipts, and a boundary
+audit — all after the cap.
+
+**Why this is recorded rather than reverted.** The cap's stated purpose was to
+avoid investing in scaffolding that publication would retire. Publication is now
+being built, not deferred: `9068e193` (first-publish skips a version the registry
+already has), `632f8bed` (runbook for the evidence-contracts-ready first
+publish), `912bf529` (plan trusted publishing migration), `eb6316bc` (cover
+trusted publishing helpers). The Sunset trigger — "the first official
+npm/cargo publication of the selection" — is the work in flight.
+
+So the lane stayed the release vehicle longer than this ADR expected, and the
+packages that entered it were consumers' real needs, not scaffolding for its own
+sake. The honest record is that the cap was overtaken by the project rather than
+respected, and that the retirement it was protecting is underway.
+
+**What governs until the Sunset fires:** a package may enter the selection when a
+real consumer needs it and the boundary audit passes, as the five entries above
+did. What still does not belong here is a new *convention* around the lane —
+anything that would outlive it and have to be unwound at publication. Sunset
+items 1 through 4 are unchanged.
+
+**Consequence for anyone adding a package now:** `scripts/ci/test-distribution-status-doc.mjs`
+asserts the count and prose in `packages/DISTRIBUTION_STATUS.md`,
+`packages/README-CAPABILITIES.md` and `packages/README.md`. Adding to the
+selection without updating those three fails that test — which is the check
+doing its job, not an obstacle. It was found by a consumer trying to add
+`document-extraction-contract-v1` and stopping when the tests went from 8/0 to
+5/3.
 
 ## Implementation
 

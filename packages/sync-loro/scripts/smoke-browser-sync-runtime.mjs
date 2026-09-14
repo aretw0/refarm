@@ -1,5 +1,6 @@
 import WebSocket from "ws";
 import { BrowserSyncClient } from "../dist/browser-sync-client.js";
+import { resolveNodeFarmSyncToken } from "../dist/node-sync-token.js";
 
 const runtimeUrl = process.env.REFARM_SYNC_RUNTIME_URL;
 
@@ -10,6 +11,13 @@ if (!runtimeUrl) {
 	process.exit(0);
 }
 
+// ADR-093: a gated daemon needs the device's bearer credential on the WS
+// handshake too. This is a Node CLI caller (no browser environment), so it
+// defaults the token from FARM_TOKEN — same convention as the sidecar's
+// Authorization header. An ungated daemon leaves FARM_TOKEN unset, so this
+// stays a no-op for the common case.
+const runtimeToken = resolveNodeFarmSyncToken();
+
 async function main() {
 	const events = [];
 	const appliedUpdates = [];
@@ -17,6 +25,7 @@ async function main() {
 		createRuntimeSmokeStorage(appliedUpdates),
 		{
 			wsUrl: runtimeUrl,
+			...(runtimeToken ? { token: runtimeToken } : {}),
 			onEvent: (event) => events.push(event),
 			webSocketConstructor: WebSocket,
 		},

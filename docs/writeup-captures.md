@@ -83,6 +83,15 @@ pnpm add -g typescript-language-server typescript
 echo 'REFACTOR_LSP_CMD="'"$HOME"'/.local/share/pnpm/bin/typescript-language-server --stdio"' > .refarm/.env
 ```
 
+Quando houver divergencia entre configuracao e runtime, confirme o contexto efetivo antes de prosseguir:
+
+```bash
+refarm model current --json
+refarm runtime status --json
+```
+
+Se os homes diferirem, alinhe `SILO_HOME` e `REFARM_HOME` para o mesmo escopo operacional.
+
 **3. O prompt precisa dar a posição exata.** Pedir ao agente que "encontre o símbolo X" o faz estimar
 linha e coluna a partir da leitura do arquivo, e ele erra por algumas linhas — a ferramenta então
 responde sobre outra coisa. Passar `file`, `line` e `column` isola o que se quer demonstrar:

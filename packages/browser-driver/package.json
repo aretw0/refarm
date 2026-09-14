@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/browser-driver",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "A light, injectable browser-login driver for authenticated scraping & automation — sign in once (SSO/VPN), reuse the cookie session for authenticated fetches. Generic: any site, any use, playbook- or agent-driven.",
 	"type": "module",
@@ -14,6 +15,10 @@
 		"./puppeteer": {
 			"import": "./dist/puppeteer.js",
 			"types": "./dist/puppeteer.d.ts"
+		},
+		"./playwright": {
+			"import": "./dist/playwright.js",
+			"types": "./dist/playwright.d.ts"
 		}
 	},
 	"scripts": {

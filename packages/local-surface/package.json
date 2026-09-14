@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/local-surface",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Provider-neutral local surface manifest, HTML, launch-plan, and quality helpers.",
 	"type": "module",

@@ -12,6 +12,6 @@ fn model_system_env_var_is_readable() {
 fn model_system_absent_does_not_panic() {
     std::env::remove_var("MODEL_SYSTEM");
     // react() uses default system prompt when MODEL_SYSTEM is unset — must not panic on native stub
-    let (content, _, _, _, _, _, _, _) = react("ping");
+    let (content, _, _, _, _, _, _, _, _) = react("ping");
     assert!(!content.is_empty());
 }

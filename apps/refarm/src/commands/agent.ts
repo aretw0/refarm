@@ -1,9 +1,5 @@
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
@@ -413,6 +409,11 @@ Notes:
 			}
 			const selectionWithAffected = {
 				...selection,
+				// A lane default that could not be honoured drops `since` (the scope becomes the
+				// dirty tree) and carries WHY, so the envelope reads as a fallback, not a choice.
+				...(selectionContext.sinceFallback
+					? { since: undefined, sinceFallback: selectionContext.sinceFallback }
+					: {}),
 				...(selectionContext.sinceRef ? { sinceRef: selectionContext.sinceRef } : {}),
 				...(selectionContext.affectedScriptChecks
 					? { affectedScriptChecks: selectionContext.affectedScriptChecks }
@@ -420,6 +421,9 @@ Notes:
 				...(selectionContext.affectedWorkspaces
 					? { affectedWorkspaces: selectionContext.affectedWorkspaces }
 					: {}),
+				// The changed files themselves, so the plan can ask the script-suite runner which
+				// of the ~90 `node --test` registrations this edit could have broken (ISS-106).
+				...(selectionContext.changedPaths ? { changedPaths: selectionContext.changedPaths } : {}),
 			};
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps, selectionWithAffected);
@@ -499,14 +503,44 @@ Notes:
 			this.outputHelp();
 		});
 
-	// `agent doctor` — the end-to-end liveness check the other diagnostics miss: it submits a
+	// `agent probe` — the end-to-end liveness check the other diagnostics miss: it submits a
 	// real minimal respond and reports whether the agent COMPLETES it. `doctor`/`model doctor`
 	// pass while the agent is a zombie (dispatch received, nothing executed); this doesn't.
+	//
+	// NAMED `probe`, NOT `doctor` (ISS-104, decided 2026-08-23). Both readings of the old name were
+	// defensible and the choice is which one this command IS: a cheap read here would say nothing
+	// `refarm check`, `refarm doctor` and `refarm model doctor` do not already say, so the dispatch
+	// is its only reason to exist. That settles it — the dispatch stays, and the WORD moves, because
+	// every other `doctor` in this CLI is a read and one that spends teaches an operator to distrust
+	// the whole family. `doctor` still works, deprecated, below.
 	command
-		.command("doctor")
-		.description("Probe whether the agent actually completes a respond (detects a zombie agent)")
+		.command("probe")
+		.description(
+			"Probe whether the agent actually completes a respond (detects a zombie agent) — DISPATCHES a real prompt",
+		)
 		.option("--json", "Output machine-readable result")
 		.option("--timeout <ms>", "How long to wait for the probe respond (ms)")
+		.addHelpText(
+			"after",
+			`
+THIS COMMAND SPENDS. It is not a read.
+
+Detecting a zombie agent means watching one COMPLETE a respond, so this submits a
+real minimal prompt through whichever route is configured and waits for the
+answer. On a paid route that costs quota, and the run leaves a full effort trail
+behind — a graph record, an audit entry, a response stream and a task result.
+Measured on a real node: five files written, ~2.1s against ~0.4s for every other
+diagnostic (ISS-104).
+
+The name reads like the safest thing in the CLI, and an operator debugging a
+broken node runs it repeatedly. So it says this here rather than leaving it to be
+discovered in a bill.
+
+For the cheap questions — is the runtime up, is a model configured, is a
+credential present — use \`refarm check\`, \`refarm doctor\` or
+\`refarm model doctor\`. None of them dispatches.
+`,
+		)
 		.action(async function (this: Command) {
 			const opts = this.opts<{ json?: boolean; timeout?: string }>();
 			// The parent `agent` command also declares --json; commander may bind a trailing
@@ -515,40 +549,85 @@ Notes:
 			const json = opts.json === true || parentJson;
 			const { probeAgentLiveness } = await import("./agent-liveness.js");
 			const timeoutMs = opts.timeout ? Number(opts.timeout) : undefined;
+			// SAID BEFORE IT HAPPENS, which is the only moment it can still be stopped. The help
+			// text explains it to whoever goes looking; this reaches the operator who did not
+			// (ISS-104). Human path only, and on stderr, so a `--json` consumer's stdout stays a
+			// single parseable document.
+			if (!json) {
+				process.stderr.write(
+					"agent probe dispatches a real prompt through the configured route — this spends " +
+						"quota and writes an effort trail. `refarm check` and `refarm model doctor` do not.\n",
+				);
+			}
 			const result = await probeAgentLiveness({ timeoutMs });
 			if (json) {
-				const extra = {
-					status: result.status,
-					message: result.message,
-					elapsedMs: result.elapsedMs,
-				};
-				if (result.status === "responsive") {
-					printJson(
-						buildJsonSuccessEnvelope({
-							command: "agent",
-							operation: "doctor",
-							nextAction: result.nextAction,
-							extra,
-						}),
-					);
-				} else {
-					printJson(
-						buildJsonErrorEnvelope({
-							command: "agent",
-							operation: "doctor",
-							error: `agent-${result.status}`,
+				// `ok` says the PROBE ran, not that the agent is alive.
+				//
+				// It used to be `status === "responsive"`, so a zombie agent produced
+				// `ok:false` with exit 0 — an envelope and an exit code that disagreed. The fix
+				// is not to make it exit non-zero: `agent doctor`'s own outcome vocabulary
+				// (`AgentLivenessStatus`) treats unresponsive, no-agent and runtime-unreachable
+				// as VERDICTS it reaches, not as failures to reach one. The probe always
+				// completes and always classifies, so it always did its job, and the verdict
+				// lives in `status` where a consumer must read it deliberately.
+				//
+				// The narrow, scriptable "is the agent alive" gate is
+				// `status === "responsive"` — one field, and nothing else changes meaning with
+				// it. See `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "agent",
+						operation: "probe",
+						nextAction: result.nextAction,
+						extra: {
+							status: result.status,
+							responsive: result.status === "responsive",
 							message: result.message,
-							nextAction: result.nextAction,
-							extra,
-						}),
-					);
-				}
+							elapsedMs: result.elapsedMs,
+							// STATED IN THE ENVELOPE, not only in the help text. A consumer that
+							// schedules this — and the probe instrument that runs every command four
+							// times per pass nearly did — must be able to read that the run had a
+							// cost without knowing this command's history (ISS-104).
+							dispatched: true,
+						},
+					}),
+				);
 				return;
 			}
 			const mark = result.status === "responsive" ? "✅" : "✗";
-			console.log("Agent doctor");
+			console.log("Agent probe");
 			console.log(`  ${mark} ${result.message}`);
 			console.log(`  → ${result.nextAction}`);
+		});
+
+	// THE OLD NAME, KEPT WORKING. Nothing in this repository invokes `agent doctor` — measured —
+	// but an operator's finger and a machine outside this tree are not searchable, and a rename
+	// that silently stops answering is a worse trade than a word that lingers with a notice.
+	//
+	// A SEPARATE COMMAND rather than `.alias("doctor")`, because an alias cannot tell which name
+	// was typed, and the notice is the entire point: the word `doctor` in this CLI means a read,
+	// and whoever still types it here has to learn that this one does not.
+	command
+		.command("doctor", { hidden: true })
+		.description("Deprecated alias for `agent probe` — DISPATCHES a real prompt")
+		.option("--json", "Output machine-readable result")
+		.option("--timeout <ms>", "How long to wait for the probe respond (ms)")
+		.action(async function (this: Command) {
+			const opts = this.opts<{ json?: boolean; timeout?: string }>();
+			process.stderr.write(
+				"`agent doctor` is now `agent probe`. Every other `doctor` in this CLI is a read; " +
+					"this one dispatches, so it took a name that says so (ISS-104).\n",
+			);
+			// REBUILT FROM THE PARSED OPTIONS, not forwarded as `this.args`. Commander consumes a
+			// declared option and its VALUE out of the remaining argv, so `--timeout 1234` reached
+			// the shim and never left it — measured by the test next door, which is the whole
+			// reason a compatibility shim gets one: an option silently dropped changes behaviour,
+			// and that is the single thing this shim exists not to do.
+			const argv: string[] = [];
+			if (opts.json) argv.push("--json");
+			if (opts.timeout) argv.push("--timeout", opts.timeout);
+			const probe = command.commands.find((sub) => sub.name() === "probe");
+			await probe?.parseAsync(argv, { from: "user" });
 		});
 
 	return command;

@@ -3,7 +3,54 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	finishSelectionFromLane,
+	plannedFinishCommands,
+} from "../../src/commands/agent-finish-plan.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
+
+// THE LANE CONTRACT. CLAUDE.md section 4 prescribes `after-edit` for "after source edits,
+// before committing", and agents are told to trust it instead of asking the operator to
+// eyeball diffs. Until 2026-08-11 it did not run a single test -- neither did any other lane;
+// `turbo run test` was defined in turbo.json and invoked by nothing -- so a deliberately
+// broken assertion passed after-edit AND before-push green.
+describe("agent finish lanes: which ones measure the tests", () => {
+	it("after-edit runs the affected package's tests", () => {
+		expect(finishSelectionFromLane("after-edit").includeTests).toBe(true);
+	});
+
+	// before-push does not re-run the PACKAGE tests — they ran at after-edit on each slice — but
+	// it does compare against `upstream`, so it validates everything the branch is about to
+	// publish.
+	it("before-push covers the whole branch range, and does not re-run the package tests", () => {
+		const selection = finishSelectionFromLane("before-push");
+		expect(selection.profile).toBe("affected");
+		expect(selection.since).toBe("upstream");
+		expect(selection.includeTests).toBeUndefined();
+	});
+
+	// THE SCRIPT SUITES, which no lane reached until 2026-08-11 (ISS-106). package.json registers
+	// ~87 `node --test` entries and the lanes run vitest through turbo, which sees none of them —
+	// so `scripts/no-os-resolution.test.mjs` sat red for hours while every gate reported green.
+	//
+	// before-push and not after-edit, on the operator's ruling: ~115s is a high price per EDIT for
+	// a failure that is rare per edit but silent and long-lived. It escapes the machine, so the
+	// gate belongs at the machine's edge.
+	it("before-push runs the script test suites, and no earlier lane does", () => {
+		const commandsFor = (lane: "after-edit" | "after-commit" | "handoffs" | "before-push") =>
+			plannedFinishCommands({ ...finishSelectionFromLane(lane), lane }).join("\n");
+		expect(commandsFor("before-push")).toContain("scripts/ci/run-script-tests.mjs");
+		for (const lane of ["after-edit", "after-commit", "handoffs"] as const) {
+			expect(commandsFor(lane), lane).not.toContain("scripts/ci/run-script-tests.mjs");
+		}
+	});
+
+	// after-commit deliberately does NOT: the tests ran at after-edit on the very same tree,
+	// and re-running them per commit buys nothing an atomic-commit cadence does not already have.
+	it("after-commit stays cheap and scoped to the last commit", () => {
+		expect(finishSelectionFromLane("after-commit").since).toBe("HEAD~1");
+	});
+});
 
 describe("agent command", () => {
 	const tempDirs: string[] = [];
@@ -55,7 +102,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm sow --json");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
-		expect(help).toContain("refarm model openai/gpt-5.5");
+		expect(help).toContain("refarm model openai/gpt-5.6-sol");
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm task list --json");
@@ -221,9 +268,9 @@ describe("agent command", () => {
 				inspectProviders: "refarm model providers --json",
 				localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 				openExternalLinks: "refarm config get operator.openExternalLinks --json",
-				setModel: "refarm model openai/gpt-5.5 --json",
+				setModel: "refarm model openai/gpt-5.6-sol --json",
 				setWorkerModel: "refarm model set --scope worker openai/gpt-5.3-codex-spark --json",
-				setMonitorModel: "refarm model set --scope monitor openai/gpt-5.5 --json",
+				setMonitorModel: "refarm model set --scope monitor openai/gpt-5.6-sol --json",
 			},
 			plugins: { install: "refarm plugin install --json" },
 			workers: {
@@ -1203,6 +1250,32 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("before-push runs the repo-contract gates the local lane used to leave to CI", async () => {
+		// Three gates existed ONLY in CI: the scaffold contract, the task-smoke build order, and
+		// the high-severity audit. None compiles anything, all three cost seconds — and on
+		// 2026-08-02 four of twelve defects reached `develop` through exactly that gap, invisible
+		// until a push six days later. `before-push` is the lane whose job is to say what CI will.
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--lane", "before-push", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string; command: string }[];
+		};
+
+		// A gate test that fails must say WHY: `ok: false` alone sent the cold clean-room lane
+		// through a whole round with nothing to read (PR #59, 2026-08-30). The envelope is the
+		// evidence, so it travels with the assertion.
+		expect(payload.ok, JSON.stringify(payload, null, 2)).toBe(true);
+		const ids = payload.steps.map((step) => step.id);
+		expect(ids).toContain("gate-validate-packages");
+		expect(ids).toContain("gate-task-build-order-check");
+		expect(ids).toContain("gate-security-audit");
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1630,6 +1703,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-apps-refarm-type-check",
 			"package-apps-refarm-lint",
 		]);
@@ -1690,6 +1764,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-packages-vtconfig-test",
 		]);
 		expect(payload.nextCommands).toContain("npm --prefix packages/vtconfig run test");
@@ -2106,6 +2181,64 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("before-push falls back to the dirty tree when the checkout has no upstream, and says so", async () => {
+		// The lane's `since: "upstream"` is a DEFAULT, not an instruction. A detached HEAD (every
+		// CI checkout of a PR) has no upstream; the plan must still exist — validating the dirty
+		// tree and saying why — instead of the `invalid-agent-finish-since-ref` refusal that an
+		// explicit `--since upstream` rightly gets below. The cold clean-room lane found this on
+		// PR #59 (2026-08-30) through the repo-contract gate test above.
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-lane-detached-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "root" }), "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		execFileSync("git", ["checkout", "--detach"], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		const originalExitCode = process.exitCode;
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync(["finish", "--lane", "before-push", "--json"], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string }[];
+			selection: {
+				lane: string | null;
+				since: string | null;
+				sinceRef: string | null;
+				sinceFallback?: { requested: string; reason: string; validationScope: string };
+				validationScope: string;
+			};
+		};
+		expect(payload.ok, JSON.stringify(payload, null, 2)).toBe(true);
+		expect(payload.selection).toMatchObject({
+			lane: "before-push",
+			since: null,
+			sinceRef: null,
+			validationScope: "dirtyTree",
+			sinceFallback: { requested: "upstream", validationScope: "dirtyTree" },
+		});
+		expect(payload.selection.sinceFallback?.reason).toContain("Could not resolve upstream");
+		expect(payload.steps.map((step) => step.id)).toContain("gate-validate-packages");
+		logSpy.mockRestore();
+	});
+
 	it("reports a JSON recovery when upstream is missing", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-no-upstream-"));
 		tempDirs.push(root);
@@ -2318,6 +2451,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 		]);
 		expect(payload.steps.map((step) => step.id)).not.toContain(
 			"script-refarm-agent-e2e-mock",
@@ -2377,9 +2511,14 @@ describe("agent command", () => {
 			"tidy-imports-check",
 			"check",
 			"script-refarm-agent-e2e-mock",
+			"affected-script-tests",
 		]);
-		expect(payload.steps.at(-1)?.command).toContain("run refarm:agent:e2e:mock");
-		expect(payload.steps.at(-1)?.process?.command).toBe("npm");
+		// BY ID, not by position. `.at(-1)` meant "the e2e step" only for as long as it happened to
+		// be last, and the affected-script-suite step (ISS-106) moved it — a positional assertion
+		// asserting the wrong thing while still passing is how a suite stops testing what it names.
+		const e2eStep = payload.steps.find((step) => step.id === "script-refarm-agent-e2e-mock");
+		expect(e2eStep?.command).toContain("run refarm:agent:e2e:mock");
+		expect(e2eStep?.process?.command).toBe("npm");
 		expect(payload.selection.affectedScriptChecks).toEqual(["agent-e2e-mock"]);
 		expect(payload.selection.affectedWorkspaces).toEqual([]);
 	});
@@ -2429,6 +2568,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-apps-refarm-lint",
 			"package-apps-refarm-test",
 			"package-apps-refarm-build",
@@ -2494,6 +2634,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-affected-validation",
 		]);
 		const validation = payload.steps.at(-1);
@@ -2546,6 +2687,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
 		expect(payload.selection.affectedWorkspaces).toEqual([]);
@@ -3005,5 +3147,33 @@ describe("agent command", () => {
 			"Selection: affected (scripts: organize-imports)",
 		);
 		logSpy.mockRestore();
+	});
+});
+
+describe("agent probe says it spends before it spends", () => {
+	/**
+	 * ISS-104, measured on the operator's real node: this command touched FIVE files in a single
+	 * run — a graph record, an audit entry, a response stream and a task result — and took 2.1s
+	 * against 0.4s for every other diagnostic. It DISPATCHES a real prompt, which on a paid route
+	 * spends quota.
+	 *
+	 * It was called `doctor`, which reads like the safest thing in the CLI, and an operator
+	 * debugging a broken node runs it repeatedly. Decided 2026-08-23: the dispatch is its only
+	 * reason to exist — a cheap read here would say nothing `refarm check`, `refarm doctor` and
+	 * `refarm model doctor` do not — so the word moved instead. The deprecated name is pinned in
+	 * `agent-probe-alias.test.ts`; that it must SAY SO is pinned here, under either name.
+	 */
+	it("the one-line description states that it DISPATCHES", () => {
+		// The line every `refarm agent --help` prints, which is where an operator meets this
+		// command before they meet its long help. The `addHelpText` block underneath carries the
+		// cost, the file count and the cheap alternatives — it is not asserted here because
+		// commander's `helpInformation()` does not include after-text, and a test that reached
+		// into commander's internals to check it would break on a dependency bump while proving
+		// nothing about what the operator sees.
+		const subcommands = createAgentCommand().commands;
+		expect(subcommands.find((sub) => sub.name() === "probe")?.description()).toContain("DISPATCHES");
+		// The deprecated word carries the same warning: an operator who has not learned the rename
+		// meets this command through the old name, and that is exactly who most needs the line.
+		expect(subcommands.find((sub) => sub.name() === "doctor")?.description()).toContain("DISPATCHES");
 	});
 });

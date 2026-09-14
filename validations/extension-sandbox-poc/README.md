@@ -38,7 +38,7 @@ read secrets.
   rehearsal, dry-run, and handoff before promotion.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
-- A `refarm.task-artifacts.v1` manifest lists generated outputs with media
+- A `sovereign.task-artifacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, tokenized producer process, and
   provenance.
 

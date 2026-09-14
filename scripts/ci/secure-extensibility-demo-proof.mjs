@@ -7,7 +7,7 @@ import { buildAgentReleaseProof } from "./agent-release-proof.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FIXTURE_ROOT = "validations/extension-sandbox-poc/fixtures/expected";
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 
 export const REQUIRED_WHITE_LABEL_STEPS = [
 	"install",

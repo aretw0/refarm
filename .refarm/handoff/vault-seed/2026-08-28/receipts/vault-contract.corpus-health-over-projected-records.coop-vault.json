@@ -1,0 +1,24 @@
+{
+  "proofId": "vault-contract.corpus-health-over-projected-records",
+  "packageName": "@refarm.dev/vault-contract-v1",
+  "consumer": "coop-vault",
+  "consumerCommit": "c23bb23f2dd39c02e9935d1db54a9d085dace52d",
+  "consumerDirty": false,
+  "manifestSha256": "f7000c536d1370e9c201ccf7b27a6889611098082cd4e466c010b48b7e441acb",
+  "generatedAt": "2026-08-28T23:12:49.913Z",
+  "commands": [
+    "npm run test:vault-contract",
+    "npm run test:surface-panels"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer can run vault:v1 corpus health over its own records:v1 projection and surface the findings, while keeping its privacy heuristics, folder policy, and PII vocabulary downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer can run vault:v1 corpus health over its own records:v1 projection and surface the findings, while keeping its privacy heuristics, folder policy, and PII vocabulary downstream-owned",
+  "notes": [
+    "Primeiro consumidor provado deste proof. Corpus real: 170 registros, 68 notas isoladas, 2 notas duplicadas, zero relacao pendurada.",
+    "A adocao SUBSTITUIU logica do consumidor: o painel do grafo calculava notas isoladas a mao, que e o achado orphan do contrato. Relacao pendurada e duplicata vieram junto, e o consumidor nao as tinha.",
+    "A fronteira se sustentou na pratica: privacidade, coorte de PII e politica de pasta designada continuam no audit_vault_hardening.js do consumidor, sem tocar no contrato. Saude de corpus e sobre o grafo; aquilo e sobre estrutura e privacidade.",
+    "O achado duplicate e por REGISTRO envolvido, nao por par: um titulo repetido conta dois. O consumidor rotula 'notas duplicadas' por isso.",
+    "Zero relacao pendurada e propriedade da projecao, que descarta alvo fora do manifesto, nao do vault. A assercao fica como sentinela.",
+    "A adocao exigiu duas correcoes no packet e no consumidor: o fecho transitivo nao tinha sha256 no manifest (42513537), e o vendor do consumidor so procurava em packages[]. std, plugin-manifest e node-contract-v1 entram por vault-contract-v1."
+  ]
+}

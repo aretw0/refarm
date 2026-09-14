@@ -11,6 +11,12 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import {
+	describeModelRateCatalog,
+	materializeDefaultModelRateCatalog,
+} from "./model-rate-catalog.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
@@ -20,10 +26,10 @@ import {
 import {
 	BUNDLED_PLUGINS,
 	type BundledPlugin,
-	pluginIdToFsToken,
+	installedPluginDir,
+	installedPluginWasmPath,
 	type PluginInstallReport,
 	type PluginInstallResult,
-	pluginsBaseDir,
 	readInstalledVersion,
 	readPackageVersion,
 	sentinelPath,
@@ -46,7 +52,7 @@ export async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id), "plugin.json");
+		const manifestPath = path.join(installedPluginDir(plugin.id), "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -131,6 +137,7 @@ export async function installPlugin(
 				id: plugin.id,
 				packageName: plugin.npmPackage,
 				status: "cached",
+				installedPath: installedPluginWasmPath(plugin.id),
 				version: pkgVersion,
 				packageSource: resolution.source,
 				packageDir: pkgDir,
@@ -138,10 +145,13 @@ export async function installPlugin(
 			};
 		}
 
-		const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id));
+		// The one function that names an install directory — the same one
+		// scripts/tractor-start.sh asks (through scripts/installed-plugin-path.mjs) for the
+		// path it loads. Two spellings of this is exactly the defect this converged.
+		const destDir = installedPluginDir(plugin.id);
 		await mkdir(destDir, { recursive: true });
 
-		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
+		copyFileSync(wasmSrc, installedPluginWasmPath(plugin.id));
 
 		// E2: also store the .wasm in the content-addressed store keyed by its hash
 		// (<user>/.refarm/assets/<sha256>), mirroring how skills persist their bytes.
@@ -151,7 +161,12 @@ export async function installPlugin(
 		// Idempotent (same content → same address); dedup for free. Never fatal to the
 		// install: the file:// entry still works even if the content-store write fails.
 		try {
-			const stored = await createFsAssetStore(scopedAssetsDir("user")).store(wasmBytes);
+			// ISS-050: the DECLARED base, not the OS home. `scopedAssetsDir("user")` used to default its home
+			// to os.homedir(), and this is the call site that proved the cost — confirmed on disk, an install
+			// wrote the working tree's agent.wasm into the OPERATOR's real ~/.refarm/assets/ while a sandbox
+			// home was declared. That is why HOME became the sandbox launcher's sixth isolated axis.
+			const assetsHome = path.dirname(resolveRefarmHome());
+			const stored = await createFsAssetStore(scopedAssetsDir("user", { userHome: assetsHome })).store(wasmBytes);
 			if (stored.hash !== sha256) {
 				// Defensive: the store re-hashes; a mismatch means something is very wrong.
 				throw new Error(`content-store hash ${stored.hash} != install hash ${sha256}`);
@@ -168,7 +183,7 @@ export async function installPlugin(
 		) as Record<string, unknown>;
 		const manifest = {
 			...template,
-			entry: `file://${path.join(destDir, "plugin.wasm")}`,
+			entry: `file://${installedPluginWasmPath(plugin.id)}`,
 			integrity,
 		};
 		await writeFile(
@@ -190,6 +205,7 @@ export async function installPlugin(
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "installed",
+			installedPath: installedPluginWasmPath(plugin.id),
 			version: pkgVersion,
 			packageSource: resolution.source,
 			packageDir: pkgDir,
@@ -235,6 +251,12 @@ export async function buildInstallReport(options: {
 		results.push(await installPlugin(plugin, options.force === true, { quiet: true }));
 	}
 
+	// The runtime's rate catalog rides the same pass, for the same reason the plugins do:
+	// it is a shipped npm artifact the sovereign dir must carry before the daemon starts.
+	// It is NOT a plugin and never fails the install — a node without one still runs,
+	// pricing from the agent's built-in table. See ./model-rate-catalog.ts.
+	const modelRateCatalog = materializeDefaultModelRateCatalog();
+
 	const failed = results.filter((result) => result.status === "failed").length;
 	const failedResult = results.find((result) => result.status === "failed");
 	return failedResult
@@ -250,14 +272,14 @@ export async function buildInstallReport(options: {
 					PLUGIN_INSTALL_JSON_COMMAND,
 					PLUGIN_STATUS_JSON_COMMAND,
 				],
-				extra: { failed, plugins: results },
+				extra: { failed, plugins: results, modelRateCatalog },
 			})
 		: buildJsonSuccessEnvelope({
 				command: "plugin",
 				operation: "install",
 				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
-				extra: { failed, plugins: results },
+				extra: { failed, plugins: results, modelRateCatalog },
 			});
 }
 
@@ -283,6 +305,10 @@ export async function installBundledPlugins(options: {
 	for (const plugin of BUNDLED_PLUGINS) {
 		results.push(await installPlugin(plugin, options.force === true, { quiet: false }));
 	}
+	// Same step the JSON path takes inside buildInstallReport — said out loud here, because
+	// the human path narrates each artifact it puts in the sovereign dir.
+	const catalogLine = describeModelRateCatalog(materializeDefaultModelRateCatalog());
+	if (catalogLine) console.log(catalogLine);
 	const failed = results.filter((result) => result.status === "failed").length;
 	if (failed > 0) process.exitCode = 1;
 }

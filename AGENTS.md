@@ -70,6 +70,12 @@ refarm agent finish --lane after-commit --run --json
 refarm agent finish --lane handoffs --run --json
 ```
 
+**Before pushing a branch:**
+
+```bash
+refarm agent finish --lane before-push --run --json
+```
+
 **JSON handoff rules:**
 
 - Every JSON command exposes `ok`, `nextCommand`, and `nextCommands`. Always
@@ -85,12 +91,29 @@ refarm agent finish --lane handoffs --run --json
 
 ## 5. Hybrid Awareness
 
-- **Sovereign Stratification**: This monorepo is HÍBRIDO.
-  - If a package has `tsconfig.build.json`, it is **TS-Strict** (source is `.ts`, `.js` in `src/` are artifacts).
-  - If it lacks TS configuration, it is **JS-Atomic** (source is `.js`).
-- **Careful Cleaning**: Never run global `rm -f src/*.js` without verifying package nature first.
+- **Sovereign Stratification**: This monorepo is HÍBRIDO, and a package's nature is not declared
+  anywhere — it is **measured**.
+  - **`git ls-files <pkg>/src` is the authority.** A tracked file is source; an untracked or
+    ignored one is an artifact. Nothing else decides.
+  - **TS-Strict**: `src/` holds tracked `.ts` and no tracked `.js`. The `.js` is emitted to `dist/`.
+  - **JS-Atomic**: `src/` holds tracked `.js` and no tracked `.ts`.
+  - **Mixed**: both tracked, side by side. This is a real category here, not a mistake.
+- **`tsconfig.build.json` DOES NOT decide this**, and an earlier revision of this rule said it did.
+  Measured 2026-08-23: **nine** packages carry one *and* carry tracked `.js` in `src/` —
+  `enrichment-provider-ref`, `fence`, `health`, `quality-checker-plugin`, `silo`,
+  `source-provider-ref`, `thresher`, `vault-surface-ref`, `windmill`. Four of them (`fence`,
+  `health`, `thresher`, `windmill`) have **no `.ts` at all**; their tsconfig emits `.d.ts` from
+  JSDoc. Read as "source is `.ts`, `.js` in `src/` are artifacts", the old rule condemned 26
+  hand-written files in `packages/health` alone.
+  - Measured alongside it, and the reason git is trustworthy here: **zero** tracked `.js` sits
+    beside a same-named `.ts` (no committed artifacts), and **zero** untracked `.js` exists under
+    any `src/` (nothing emits there).
+- **Careful Cleaning**: Never run a global `rm -f src/*.js`. Ask git first —
+  `git ls-files <pkg>/src | grep '\.js$'` — and treat everything it lists as source.
 
-> _Active Inference_: recognizing a package's nature reduces the model's complexity — acting without this knowledge maximizes surprise.
+> _Active Inference_: a package's nature is an observation, not a declaration. The old rule inferred
+> it from a neighbouring fact and was wrong nine times; sampling the repository directly costs one
+> command and removes the guess.
 
 ## 5. Documentation Continuity
 
@@ -111,7 +134,11 @@ refarm agent finish --lane handoffs --run --json
 
 ## 7. Build Resource Discipline
 
-The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings (`jobs=16`, `codegen-units=16`) will exhaust available memory and crash the container. `.cargo/config.toml` at the repo root enforces safe defaults — do not override them without reason.
+Rust parallelism defaults are intentionally conservative in this repo because broad builds can saturate memory on constrained environments (especially shared devcontainers) and fail before producing useful signal.
+
+Host capacities vary across operators. When numbers are mentioned, they are observations from a specific environment and date, not a universal host fact. Example: on 2026-08-04, one host measured ~31GB RAM (about 17GB available) and 8 cores.
+
+`.cargo/config.toml` at the repo root defines safe baseline defaults for shared usage. These defaults are adjustable per host/workload when capacity allows (for example via `cargo --jobs`, environment variables, or `CARGO_TARGET_DIR` placement) while keeping release WASM size guarantees intact.
 
 > For artifact locations, cleanup tiers (light/medium/heavy), CARGO_TARGET_DIR volume layout, and disk compaction guidance: see [`docs/local-disk-hygiene.md`](docs/local-disk-hygiene.md).
 
@@ -132,8 +159,11 @@ cargo test --test agent_harness -- --ignored --test-threads=1
 # ⚠️  Full test suite — only when preparing a push
 cargo test --lib && cargo test --test ws_integration
 
-# ⚠️  WASM component build — necessary before running harness, not before every unit slice
-cargo component build --release -p agent
+# ⚠️  WASM component build — necessary before running harness, not before every unit slice.
+# The package script, never bare cargo: it also republishes the dist/ artifact `plugin install`
+# reads, so bare `cargo component build` leaves an install running the old code.
+# Full rebuild→install→verify cycle: docs/PLUGIN_DEVELOPER_STORIES.md.
+pnpm --filter @refarm.dev/agent run build:wasm
 
 # 🚫 Never run without `--lib`, a specific `--test`, or a specific filter in this environment
 cargo test   # compiles ALL test binaries simultaneously → OOM risk
@@ -152,8 +182,9 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 | Setting                         | Default | This repo | Reason                               |
 | ------------------------------- | ------- | --------- | ------------------------------------ |
-| `build.jobs`                    | 16      | 4         | Limits parallel crate compilation    |
-| `profile.dev.codegen-units`     | 16      | 4         | Limits LLVM threads per crate        |
+| `build.jobs`                    | host CPU count | 6         | Conservative shared-host parallelism |
+| `profile.dev.codegen-units`     | 16      | 6         | Balanced dev/test throughput vs RAM  |
+| `profile.test.codegen-units`    | inherits dev (16 baseline) | 6         | Keep test compiles aligned with dev  |
 | `profile.release.codegen-units` | 16      | 1         | Smaller WASM binary + lower peak RAM |
 
 > _Active Inference_: a build that crashes the container produces zero information. Constraining parallelism is not slower — crashing and restarting is slower.
@@ -166,6 +197,42 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 - **If intent is ambiguous, stop and ask**: do not infer permission for operations outside the user-declared scope.
 
 > _Active Inference_: in uncertain conditions, information-gathering (ask/confirm) is lower-risk than irreversible action.
+
+## 9. Guard Fireability
+
+**No guard lands until it has been SHOWN to fail.** Write the gate, then break the thing it
+watches and watch it go red. A guard that has only ever been seen passing is indistinguishable
+from one that does not run — and worse than none, because its presence reads as coverage.
+
+- **Break it on purpose, then restore.** Mutate the code, the fixture, or the input the guard
+  reads; confirm the failure names the right thing; put it back. Say so in the commit — the next
+  reader needs to know the guard was proven, not merely written.
+- **A verdict must not share assumptions with what it judges.** If a check derives its input from
+  the same selection, parse or convention as the thing it checks, it inherits that blind spot and
+  cannot report it. Measure the property directly instead, even when that costs more.
+- **Read the fixture of the test that already covers the behaviour.** It may be the source of the
+  error rather than the guard against it — a suite can PIN a defect as correct.
+- **A number in a durable record is measured or it is not written.** Inferring one from an
+  adjacent fact produces an entry that reads as evidence and is not.
+
+MEASURED 2026-08-22/23, and this rule exists because of the count rather than the principle.
+Twelve defects were found in two days; eleven were this one shape:
+
+    readNodeSubstrate classified by a neighbouring fact and could not see the coupling · the
+    install verified a tree that then changed · ProcessLiveness folded "died" into "is off" ·
+    the suite ASSERTED that fold · a CI gate lived in a pipeline nothing had triggered for
+    fourteen days · a lane-only gate watched drift land anyway · a contract asserted a
+    requirement its design had deleted · a workflow step called `pnpm` before the step that
+    installs it, exiting 127 since the day it was written · the moderate audit was non-blocking
+    in three places while crying wolf weekly · §5 of this document prescribed a verification
+    that was itself wrong · and two of the twelve were introduced the same day by an agent
+    following every other rule here.
+
+The last clause is the argument for writing it down: care was not the missing ingredient.
+
+> _Active Inference_: a guard is a prediction that something will be observed when it breaks.
+> An untested prediction is a belief, and this repository's whole method is to prefer the
+> measurement over the belief.
 
 ---
 

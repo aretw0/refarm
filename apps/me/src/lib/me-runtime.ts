@@ -122,7 +122,7 @@ export interface RefarmMeRuntimeOptions {
 export interface RefarmMeScheduledWorkSummary {
 	total: number;
 	due: number;
-	scheduled: number;
+	declared: number;
 	unsupported: number;
 }
 
@@ -273,13 +273,13 @@ function readRefarmMeScheduledWorkSummary(
 	const candidate = value as {
 		total?: unknown;
 		due?: unknown;
-		scheduled?: unknown;
+		declared?: unknown;
 		unsupported?: unknown;
 	};
 	if (
 		typeof candidate.total !== "number" ||
 		typeof candidate.due !== "number" ||
-		typeof candidate.scheduled !== "number" ||
+		typeof candidate.declared !== "number" ||
 		typeof candidate.unsupported !== "number"
 	) {
 		return undefined;
@@ -287,7 +287,7 @@ function readRefarmMeScheduledWorkSummary(
 	return {
 		total: candidate.total,
 		due: candidate.due,
-		scheduled: candidate.scheduled,
+		declared: candidate.declared,
 		unsupported: candidate.unsupported,
 	};
 }

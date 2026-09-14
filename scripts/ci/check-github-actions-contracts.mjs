@@ -90,9 +90,25 @@ if (!platformCompat) {
 	);
 }
 
-if (!validateDiagramsWorkflow.includes("node scripts/ci/install-puppeteer-browser.mjs")) {
-	failures.push("validate-diagrams must explicitly install the Puppeteer Chrome browser before running mmdc");
-}
+// DIAGRAMS ARE VERIFIED BY HASH, NOT BY RENDERING (ISS-046, resolved). This rule used to demand
+// the opposite — that the workflow install a Puppeteer Chrome before running `mmdc` — and it kept
+// demanding it after the design that needed a browser was removed. Measured 2026-08-23: the rule
+// had been failing for as long as the fix it forbade had been in place, on a repository whose CI
+// had not run in fourteen days, so nothing ever said so.
+//
+// Inverted rather than deleted. Deleting would drop the guard; asserting the decision keeps one.
+// A browser download is the cost ISS-046 removed, and re-rendering SVG is machine-dependent — the
+// exact reason strictness had to be disabled before the hash existed.
+assertIncludes(
+	validateDiagramsWorkflow,
+	"pnpm run diagrams:check",
+	"validate-diagrams must verify the recorded source hash (ISS-046), not re-render",
+);
+assertNotIncludes(
+	validateDiagramsWorkflow,
+	"run: node scripts/ci/install-puppeteer-browser.mjs",
+	"validate-diagrams must NOT install a browser — ISS-046 replaced rendering with a source hash",
+);
 
 if (failures.length === 0) {
 	console.log("✓ GitHub Actions contracts are valid");

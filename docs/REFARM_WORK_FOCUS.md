@@ -23,6 +23,29 @@ The CLI product should be named `refarm` and live as a distro under
 `apps/refarm`. Packages remain reusable blocks. This preserves Refarm's
 composition model: apps make product choices; packages provide primitives.
 
+## The ocamento umbrella (anti-regression convergence)
+
+The direction does not rest until every one of the creator's operations —
+personal and work — is *ocado*: its generic capabilities assimilated as Refarm
+blocks, its specifics kept in their own workspace, and the whole administrable
+from ONE surface of the creator's choosing (Termux or PWA) over the tailnet.
+Refarm is thus both the **SDK** (blocks others build on) and the **operational
+compatibility layer** (the umbrella that operates those workspaces and the
+collective integrations between them). This is anti-regression: assimilate what
+already works in isolated tools, keep learning from what exists, and organize it
+per the architecture — cultivating new or existing blocks in this monorepo and
+in the others' (`rcdc5`, `vault-seed`, the vaults).
+
+**White-label is now concrete, not just posture.** A compatible workspace's own
+CLI (vault-seed's `dgk`, an example's command) is reachable as the equivalent
+`refarm` command: `refarm workspace run <ws> <cmd>` runs a workspace's declared,
+NAMED command — an allowlist operation catalog in `.refarm/config.json`
+`commands` (argv-normalized, never a remote shell); refarm holds only the
+command string + cwd, the logic stays in the workspace. A user who knows a
+workspace is Refarm-compatible need not remember `dgk`. The living ant-journey
+lane is [`docs/CONVERGENCE-LANE.md`](./CONVERGENCE-LANE.md); the current
+cross-machine slice is the Remote-workspace-control track below.
+
 ## 2026-06 release focus
 
 Treat `v0.1.0` as an earned reliability label, not as a calendar milestone. The
@@ -74,15 +97,15 @@ into a new control plane. "Dormant" means gated by evidence, not abandoned.
 
 | Track | Current posture | Next safe touch | Avoid |
 | --- | --- | --- | --- |
-| Release kernel / `vault-seed` handoff | Active. Candidate blocks must be packable and consumable before public release. | Keep using `vault-seed-ready` selection, local tarball handoffs, generator/codemod dry-runs, and downstream-owned product behavior as proof. | Publishing or renaming surfaces before conformance/docs/consumer neutrality are settled. |
+| Release kernel / `vault-seed` handoff | Active. Candidate blocks must be packable and consumable before public release. | Keep using `consumer-ready` selection, local tarball handoffs, generator/codemod dry-runs, and downstream-owned product behavior as proof. | Publishing or renaming surfaces before conformance/docs/consumer neutrality are settled. |
 | Daily-driver Refarm | Active. The `refarm` CLI, runtime, finish gates, sessions, plugins, credentials, and recovery loops are first-class dogfood. | Harden operator loops and environment-pressure ceilings when they unblock current work. | Moving product-specific choices into reusable packages. |
 | Silo / security | Active, storage-ready. Silo has namespaces, storage helpers, hardened file modes, and protected envelopes. | Add stronger protection providers only behind the existing envelope/key-manager boundary when dogfood or a consumer proves the need. | Claiming full encryption before the provider exists, or putting crypto policy into `apps/refarm`. |
 | WASM substrate / Astro 7 | Active as substrate, red as Astro-on-Tractor product adapter. ADR-070 Parts A/B remain the lane; Part C evidence is red under `validations/astro-wasi-ssr/`. | Define/consume `wasm-surface:v1`, loader/manifest policy, and Tractor native-first plus WASM-fallback behavior when a lab/site consumer needs it. | Reopening Astro SSR on Tractor as product work without a new upstream WASI profile or second-consumer proof. |
 | Native skills | Activation-gated. Skills are distributed capabilities over plugin/manifest/policy substrate, not a second plugin ecosystem. | Write/execute the native skill contract plus plugin-manifest skill surface with one `dgk-skills` or `agents-lab` fixture. | Copying external skills into Refarm or building a parallel runtime outside Barn/plugin policy. |
 | Source librarian | Partially active. `source:v1`, `source-git`, and `source-local` exist; `source-dispatch` waits for executable dispatch pressure. | Wire `source:v1` through `dispatch-surface` only when the agent/kernel path needs it. | Creating a generic source megasystem before dogfood, `vault-seed`, or `agents-lab` proves dispatch semantics. |
-| Distributed availability / Pears | Evidence-active, runtime-adoption-gated. ADR-075 is reference pressure for portable core and thin surfaces. | Turn the existing availability proof into install/update descriptor or blind-replica policy only when dogfood or a second consumer needs it. | Adopting Bare/Hypercore/Pears wholesale as Refarm storage/runtime before the boundary is proven. |
-| Remote workspace control | Horizon-active. The desired shape is capability-scoped control of local and remote machines through explicit handoffs. | Extend workspace descriptors, read-only probes, and environment ceilings when current workflows need cross-machine observation or dispatch. | Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction. |
-| Content projection / MD-MDX authoring | Phase 1 implemented, selected, and downstream-proven. `@refarm.dev/content-projection` projects frontmatter, wikilinks, and inline Markdown links into valid `records:v1`; the official `vault-seed` MDX inventory now supplies render pressure for `ds-astro`. | Build the separate `@refarm.dev/ds-astro` render adapter over `ds/html`, prove one `apps/site` MDX fixture, then hand off a candidate tarball for the downstream proof plan. | Naming it a `source-*` adapter (acquisition is `source-local`); coupling `ds` core to Astro (bind only in `ds-astro`); folding in the DS composition guardrail (separate graduation); building a local vault-seed block library instead. |
+| Distributed availability / Pears / Iroh | Evidence-active, runtime-adoption-gated. ADR-075 remains the platform-shape reference; the Iroh 1.x fichamento promotes only native artifact transport to a contained validation candidate. | Run Phase A of the private Iroh validation when a clean Rust lane is available; extract an adapter only after replica/retention proof and consumer pressure. | Replacing Tailnet, Loro, auth, or artifact identity; treating public relays as sovereign production; adopting Pears/Iroh wholesale before the boundary is proven. |
+| Remote workspace control | Active and end-to-end proven. Named, shell-free commands reviewed with `remote: true` are projected through `/operations` to Termux and the browser/PWA. `operation-result.v1` carries only bounded, redacted summaries/metrics/findings; stdout and argv never become a remote terminal. The first downstream producer, rcdc5 `code-boundaries` (`66f8d91`), completed through the authenticated endpoint with 10 packages and zero findings. Existing nodes migrate their fail-closed spawn boundary through recorded `refarm config spawn-env` authorship. | Let the operator confirm the result from the updated Termux/PWA projections, then compose Telegram over the same catalog/lifecycle/result contracts; no new executor. | Inheriting the daemon's ambient `PATH`; editing config JSON by hand; teaching Refarm rcdc5-specific output; treating SSH, host paths, Tailscale, or a generic remote shell as the abstraction. |
+| Content projection / MD-MDX authoring | Implemented, selected, and consumer-proven — as of 2026-08-16, and the two words in front of that date were wrong before it. `@refarm.dev/content-projection` projects frontmatter, wikilinks, and inline Markdown links into valid `records:v1`; `vault-seed`'s records reference vault structures its MD/MDX lane through it and lands those records in the same validated manifest as the web ETL lane. This row read "downstream-proven" while `refarm.config.json` said `candidate-hold` and the package's only caller anywhere was a contract test — the config was right. `@refarm.dev/ds-astro` shipped (4 components, `apps/site/src/content/ds-astro-proof.mdx`, tarball vendored in `vault-seed`), so the next step this row used to name is done. | Let `vault-seed`'s product path adopt the block where it still runs a local `noteToRecord` and `remark-wiki-links` — two projection implementations for one job is the drift this package exists to end. | Naming it a `source-*` adapter (acquisition is `source-local`); coupling `ds` core to Astro (bind only in `ds-astro`); folding in the DS composition guardrail (separate graduation); building a local vault-seed block library instead. |
 
 Validation packages under `validations/` are evidence surfaces, not publication
 surfaces. They may use workspace package metadata so Turbo and the compatibility
@@ -187,8 +210,11 @@ wires that parser into `agent finish` steps whose `process.tool` is `turbo`.
 New executors should emit the same generic cache shape instead of teaching
 operators or agents to parse runner-specific logs.
 
-Workspace declarations belong in `.refarm/config.json` under `workspaces`.
-Each entry is intent, not observed state:
+Workspace declarations belong under `workspaces` in the operator catalog
+(`~/.refarm/config.json`, or `REFARM_HOME/config.json`). This makes the catalog
+available outside any checkout. `refarm workspace add --local` is the explicit
+escape hatch for a declaration owned only by the current workspace. Each entry
+is host-local intent, not observed or replicated state:
 
 ```json
 {
@@ -202,12 +228,18 @@ Each entry is intent, not observed state:
 }
 ```
 
-Use `refarm workspace list --json` to inspect configured workspaces and
+Use `refarm workspace add <path>` to derive a proposal from the directory and
+Git origin, review the exact change, and authorise it without editing JSON. Use
+`refarm workspace list --json` to inspect configured workspaces and
 `refarm workspace execution --workspace <id> --json` to observe a declared
 workspace without manually changing shell directories. Use
 `refarm workspace execution --all --json` for a read-only control-plane sweep
 across every declared workspace; missing paths are reported per observation
 instead of turning the whole command into a write or recovery action.
+
+Apps that compose the same journey reuse
+`@refarm.dev/cli/workspace-declaration`; the Refarm app owns only its command,
+home policy, prompts and consent rendering.
 
 For container/host boundaries, workspace entries can include filesystem bridge
 candidates:

@@ -13,7 +13,8 @@ pub(crate) fn completion_result(
         tool_calls: serde_json::Value::Array(executed_calls),
         tokens_in: totals.tokens_in,
         tokens_out: totals.tokens_out,
-        tokens_cached: totals.tokens_cached,
+        cache_read_tokens: totals.cache_read_tokens,
+        cache_creation_tokens: totals.cache_creation_tokens,
         tokens_reasoning: totals.tokens_reasoning,
         usage_raw: usage.to_string(),
     }

@@ -219,6 +219,19 @@ function buildArtifactManifest({
 export async function buildRequirementsSupplyComposition({
 	completedAt = DEFAULT_COMPLETED_AT,
 	cwd = process.cwd(),
+	/**
+	 * The environment pressure this composition gates on. MEASURED from the machine by default,
+	 * INJECTED by a test.
+	 *
+	 * Why it had to become injectable: `decideGate` returns "serialize" whenever pressure is not
+	 * `continue`, and the suite asserted "allow" unconditionally. So a verdict about COMPOSITION
+	 * logic depended on the free memory of whoever ran it — measured 2026-08-28 on a machine with
+	 * 3GB of 31GB available, where it went red and the gate reported "a suite that was green is
+	 * not any more", pointing at an unrelated change that happened to be in flight.
+	 *
+	 * A test that fails for a reason its subject does not contain accuses whatever is nearest.
+	 */
+	pressure,
 } = {}) {
 	const issues = [];
 	const sourceCacheRoot = await mkdtemp(path.join(os.tmpdir(), "requirements-supply-source-web-"));
@@ -283,13 +296,15 @@ export async function buildRequirementsSupplyComposition({
 		));
 	}
 
-	const pressure = buildEnvironmentPressureReport({
-		command: "requirements-supply-composition",
-		operation: "preflight",
-		cwd,
-	});
+	const measuredPressure =
+		pressure ??
+		buildEnvironmentPressureReport({
+			command: "requirements-supply-composition",
+			operation: "preflight",
+			cwd,
+		});
 	const gateDecision = decideGate({
-		pressure,
+		pressure: measuredPressure,
 		validation: finalValidation,
 		coverage,
 		enrichment,
@@ -325,10 +340,10 @@ export async function buildRequirementsSupplyComposition({
 		mode: "synthetic-sanitized-composition",
 		gateDecision,
 		pressure: {
-			ok: pressure.ok,
-			decision: pressure.decision,
-			signalCount: pressure.signals.length,
-			nextCommands: pressure.nextCommands,
+			ok: measuredPressure.ok,
+			decision: measuredPressure.decision,
+			signalCount: measuredPressure.signals.length,
+			nextCommands: measuredPressure.nextCommands,
 		},
 		source: {
 			providerId: sourceProvider.pluginId,

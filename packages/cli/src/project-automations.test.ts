@@ -6,9 +6,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	createNodeAutomationAdapter,
 	createProjectAutomationAdapter,
 	findProjectAutomationsPath,
 	loadProjectScheduledWork,
+	nodeAutomationsPath,
 	updateProjectAutomationStatus,
 	validateProjectAutomationsDocument,
 } from "./project-automations.js";
@@ -189,14 +191,14 @@ describe("project automations", () => {
 			summary: {
 				total: 1,
 				due: 0,
-				scheduled: 1,
+				declared: 1,
 				unsupported: 0,
 			},
 			jobs: [
 				{
 					id: "daily-handoff:0",
 					automationId: "daily-handoff",
-					status: "scheduled",
+					status: "declared",
 					modelRoute: "none",
 					tokenUse: "none",
 				},
@@ -382,5 +384,144 @@ describe("project automations", () => {
 		await expect(
 			createProjectAutomationAdapter({ cwd: root }).trigger("plugin-proof"),
 		).rejects.toThrow("host plugin adapter");
+	});
+});
+
+describe("a cron timezone nobody can resolve is refused at write time", () => {
+	/** The automation vocabulary has carried `CronTrigger.timezone` since it was written, and until
+	 *  2026-08-11 every evaluator matched against UTC while every reporter echoed the declared zone
+	 *  back. The executor now says `unsupported` for a zone it cannot resolve — this refuses it one
+	 *  step earlier, so an operator finds out when they type it rather than at the hour the job was
+	 *  supposed to run and did not. */
+	function validateWithTimezone(timezone: unknown) {
+		return validateProjectAutomationsDocument({
+			schemaVersion: 1,
+			automations: [
+				{
+					id: "a1",
+					name: "nightly",
+					status: "active",
+					body: { type: "static", effort: { direction: "d", tasks: [] } },
+					triggers: [{ type: "cron", schedule: "0 0 * * *", timezone }],
+				},
+			],
+		});
+	}
+
+	it("accepts a real IANA zone", () => {
+		expect(validateWithTimezone("America/Sao_Paulo").ok).toBe(true);
+	});
+
+	it("accepts an absent timezone — absent means UTC, which is a decision, not a gap", () => {
+		const result = validateProjectAutomationsDocument({
+			schemaVersion: 1,
+			automations: [
+				{
+					id: "a1",
+					name: "nightly",
+					status: "active",
+					body: { type: "static", effort: { direction: "d", tasks: [] } },
+					triggers: [{ type: "cron", schedule: "0 0 * * *" }],
+				},
+			],
+		});
+		expect(result.ok).toBe(true);
+	});
+
+	it("refuses a zone this runtime cannot resolve, naming the value", () => {
+		const result = validateWithTimezone("Mars/Olympus");
+		expect(result.ok).toBe(false);
+		expect(result.issues.map((issue) => issue.code)).toContain(
+			"invalid_project_automation_cron_timezone",
+		);
+		expect(result.issues[0]?.message).toContain("Mars/Olympus");
+	});
+
+	it("refuses a non-string timezone rather than coercing it", () => {
+		expect(validateWithTimezone(42).ok).toBe(false);
+		expect(validateWithTimezone("").ok).toBe(false);
+	});
+});
+
+describe("ISS-075 — where a node-scoped automation lives", () => {
+	/**
+	 * `.project/automations.json` is PROJECT-scoped and says so in its name. It is found by walking
+	 * UP from the working directory, which is the right answer for "what does this repository want
+	 * done" and the wrong one for "what does this NODE keep doing" — two of the three known
+	 * customers, restarting this node and verifying its rate catalog, are facts about the machine
+	 * and have no repository to be found from.
+	 */
+	it("is the sovereign dir, beside the other things this node declares about itself", () => {
+		expect(nodeAutomationsPath("/home/op")).toBe("/home/op/.refarm/automations.json");
+	});
+
+	it("reads from the declared base, never from wherever a command was run", () => {
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-node-automations-"));
+		fs.mkdirSync(path.join(base, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			nodeAutomationsPath(base),
+			JSON.stringify({
+				schemaVersion: 1,
+				automations: [
+					{
+						id: "urn:automation:node:restart",
+						name: "restart-this-node",
+						status: "active",
+						body: { type: "static", effort: { direction: "restart", tasks: [] } },
+						triggers: [{ type: "cron", schedule: "0 4 * * *" }],
+					},
+				],
+			}),
+		);
+		try {
+			const adapter = createNodeAutomationAdapter({ base });
+			return adapter.query().then((found) => {
+				expect(found.map((automation) => automation.name)).toEqual(["restart-this-node"]);
+			});
+		} finally {
+			fs.rmSync(base, { recursive: true, force: true });
+		}
+	});
+
+	it("says nothing when the node declares none — absent is not an error", () => {
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-node-automations-empty-"));
+		try {
+			return createNodeAutomationAdapter({ base })
+				.query()
+				.then((found) => expect(found).toEqual([]));
+		} finally {
+			fs.rmSync(base, { recursive: true, force: true });
+		}
+	});
+
+	it("does NOT walk up from the base looking for a project file", () => {
+		// The project adapter walks up on purpose; this one must not, or a node standing inside a
+		// repository would silently adopt that repository's automations as its own.
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-node-no-walk-"));
+		const nested = path.join(base, "nested");
+		fs.mkdirSync(path.join(base, ".project"), { recursive: true });
+		fs.mkdirSync(nested, { recursive: true });
+		fs.writeFileSync(
+			path.join(base, ".project", "automations.json"),
+			JSON.stringify({
+				schemaVersion: 1,
+				automations: [
+					{
+						id: "urn:automation:project:x",
+						name: "belongs-to-the-project",
+						status: "active",
+						body: { type: "static", effort: { direction: "x", tasks: [] } },
+						triggers: [{ type: "manual" }],
+					},
+				],
+			}),
+		);
+		try {
+			return createNodeAutomationAdapter({ base: nested })
+				.query()
+				.then((found) => expect(found).toEqual([]));
+		} finally {
+			fs.rmSync(base, { recursive: true, force: true });
+		}
 	});
 });

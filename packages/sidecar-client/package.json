@@ -27,7 +27,8 @@
 	"dependencies": {
 		"@refarm.dev/node-contract-v1": "workspace:*",
 		"@refarm.dev/pressure-contract-v1": "workspace:*",
-		"@refarm.dev/root": "workspace:*"
+		"@refarm.dev/root": "workspace:*",
+		"@refarm.dev/storage-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

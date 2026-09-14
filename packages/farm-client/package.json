@@ -17,11 +17,27 @@
 	"bin": {
 		"farm-hello": "./bin/farm-hello.mjs",
 		"farm-announce": "./bin/farm-announce.mjs",
-		"farm-ask": "./bin/farm-ask.mjs"
+		"farm-ask": "./bin/farm-ask.mjs",
+		"farm-attend": "./bin/farm-attend.mjs",
+		"farm-auth": "./bin/farm-auth.mjs",
+		"farm-start": "./bin/farm-start.mjs",
+		"farm-update": "./bin/farm-update.mjs"
 	},
-	"files": ["src", "bin", "bootstrap", "README.md"],
+	"files": [
+		"src",
+		"bin",
+		"bootstrap",
+		"vendor",
+		"README.md"
+	],
 	"scripts": {
 		"test": "node --test test/*.test.mjs",
-		"test:unit": "node --test test/*.test.mjs"
+		"test:unit": "node --test test/*.test.mjs",
+		"lint": "eslint bin src scripts test",
+		"vendor:sync": "node scripts/vendor.mjs",
+		"vendor:check": "node scripts/vendor.mjs --check"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*"
 	}
 }

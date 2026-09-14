@@ -142,6 +142,22 @@ The Holepunch organization reinforces a boundary rule Refarm already needs:
 - Do not make a package just because Pear has an equivalent primitive; create one only when the
   Refarm package-boundary triggers in ADR-072/ADR-073/ADR-074 are met.
 
+## 2026-08-02 evidence addendum — Iroh 1.x
+
+Iroh 1.0 makes one part of this ADR testable with a concrete candidate: native connectivity by
+stable endpoint key, encrypted QUIC, address lookup/NAT traversal, relay fallback, ALPN-composed
+protocols, and content-addressed blob transfer. This does **not** amend the decision into an Iroh
+adoption.
+
+The candidate is limited to a private distributed-availability validation. It must preserve
+Refarm's artifact identity, authorization, Loro/SQLite state model, process lifecycle, and
+transport-neutral evidence. Public relays are laboratory infrastructure only; browser and current
+non-Rust binding parity are not assumed. Promotion depends on replica/retention proof, a real native
+consumer, resource measurements, and a self-owned infrastructure profile.
+
+Research, sources, experiment phases, and kill criteria:
+[`docs/research/2026-08-02-iroh-1-distributed-transport.md`](../../docs/research/2026-08-02-iroh-1-distributed-transport.md).
+
 ## Consequences
 
 ### Positive

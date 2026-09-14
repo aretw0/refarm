@@ -51,6 +51,85 @@ export interface BrowserSession {
 	close(): Promise<void>;
 }
 
+/**
+ * How "login complete" is DETECTED — no human keypress. Browser-agnostic (a puppeteer, a
+ * Playwright, or a CDP adapter all read the same signals), so it lives here, not in an adapter.
+ * A project brings its own signals for its own SSO/app (e.g. a SerproID redirect back to the ALM,
+ * a Keycloak cookie); the shared block just polls them.
+ */
+export interface LoginSignals {
+	/** Success when the page URL includes this substring (e.g. the dashboard path). */
+	urlIncludes?: string;
+	/** Success when this CSS selector appears (e.g. a dashboard element only shown when authed). */
+	readySelector?: string;
+	/** Success when a cookie with this name is set (the session cookie, e.g. "JSESSIONID"). */
+	cookieNamed?: string;
+	/** URL fragments that mean "still logging in" — success requires the URL NOT to match these
+	 * (default: /login|sso|auth|signin/). */
+	loginUrlPattern?: string;
+}
+
+/**
+ * The minimal, browser-agnostic view `awaitLoginDetected` needs of a live session — an adapter
+ * builds one over its page/context (puppeteer's `page`, Playwright's `page` + `context`). Behind
+ * this, the detection loop is identical for every browser and testable with a fake.
+ */
+export interface LoginProbe {
+	/** The session page's current URL. */
+	currentUrl(): string;
+	/** Whether a selector is present on the page. */
+	hasSelector(selector: string): Promise<boolean>;
+	/** Whether a cookie with this name is set on the session. */
+	hasCookie(name: string): Promise<boolean>;
+}
+
+/** Knobs for the detection loop — injected `now`/`sleep` make it deterministic under test. */
+export interface AwaitLoginOptions {
+	/** How long to wait for login before throwing (ms). Default 3 min. */
+	timeoutMs?: number;
+	/** Poll interval (ms). Default 1s. */
+	pollIntervalMs?: number;
+	/** Clock source (default Date.now) — injected in tests to drive the timeout deterministically. */
+	now?: () => number;
+	/** Sleep between polls (default setTimeout) — injected in tests to resolve immediately. */
+	sleep?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Poll a live session until login is DETECTED: the URL has left the login flow AND every
+ * configured signal (url marker / ready selector / auth cookie) is met — then return. Throws
+ * BROWSER_LOGIN_TIMEOUT past the deadline. This is the browser-agnostic heart every adapter
+ * shares, so "how do we know the human finished SSO?" is defined once and tested once.
+ */
+export async function awaitLoginDetected(
+	probe: LoginProbe,
+	signals: LoginSignals,
+	options: AwaitLoginOptions = {},
+): Promise<void> {
+	const loginPattern = signals.loginUrlPattern ?? "login|sso|auth|signin";
+	const timeout = options.timeoutMs ?? 180_000;
+	const interval = options.pollIntervalMs ?? 1000;
+	const now = options.now ?? (() => Date.now());
+	const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+	const deadline = now() + timeout;
+
+	for (;;) {
+		const url = probe.currentUrl();
+		const notLoggingIn = !new RegExp(loginPattern, "i").test(url);
+		const urlOk = signals.urlIncludes ? url.includes(signals.urlIncludes) : true;
+		const selectorOk = signals.readySelector ? await probe.hasSelector(signals.readySelector) : true;
+		const cookieOk = signals.cookieNamed ? await probe.hasCookie(signals.cookieNamed) : true;
+		if (notLoggingIn && urlOk && selectorOk && cookieOk) return;
+		if (now() > deadline) {
+			throw new Error(
+				"BROWSER_LOGIN_TIMEOUT: timed out waiting for login to be detected. Finish signing in " +
+					"(VPN + SSO) within the window, or raise timeoutMs / tune signals.",
+			);
+		}
+		await sleep(interval);
+	}
+}
+
 /** Serialize cookies into a `Cookie` request header value. */
 export function cookieHeader(cookies: SessionCookie[]): string {
 	return cookies.map((c) => `${c.name}=${c.value}`).join("; ");

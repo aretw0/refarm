@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	validateDsPublicApi,
+	validateDeclaredEntrypointSources,
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
@@ -10,6 +11,34 @@ import {
 	validateWasmComponent,
 	validateWitComponentDistributionTarget,
 } from "../validate-packages.mjs";
+
+test("rejects a declared dist entrypoint that has no source cause", () => {
+	assert.deepEqual(
+		validateDeclaredEntrypointSources("/pkg", {
+			main: "./dist/index.js",
+			exports: { ".": { import: "./dist/index.js", types: "./dist/index.d.ts" } },
+		}, () => false),
+		["./dist/index.js has no corresponding source entrypoint (src/index.{ts,tsx,mts,cts,js,mjs,cjs})"],
+	);
+});
+
+test("accepts a declared dist entrypoint when one canonical source variant exists", () => {
+	assert.deepEqual(
+		validateDeclaredEntrypointSources("/pkg", {
+			exports: { "./feature": { import: "./dist/feature.js", types: "./dist/feature.d.ts" } },
+		}, (candidate) => candidate === "/pkg/src/feature.ts"),
+		[],
+	);
+});
+
+test("maps hybrid dist/test entrypoints back to their root test source", () => {
+	assert.deepEqual(
+		validateDeclaredEntrypointSources("/pkg", {
+			exports: { "./test/test-utils": { default: "./dist/test/test-utils.js" } },
+		}, (candidate) => candidate === "/pkg/test/test-utils.ts"),
+		[],
+	);
+});
 
 test("allows root package manager config without legacy pnpm block", () => {
 	assert.deepEqual(

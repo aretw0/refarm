@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 
 const fallbackSessionLockPath = path.join(os.tmpdir(), ".refarm", "session.lock");
 
-export const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
+export const SESSION_LOCK_PATH = path.join(resolveRefarmHome(), "session.lock");
 
 const SESSION_LOCK_PATHS = [SESSION_LOCK_PATH, fallbackSessionLockPath];
 

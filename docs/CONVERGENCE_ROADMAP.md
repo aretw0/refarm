@@ -302,7 +302,7 @@ evidence remains under `validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain a
 Closed on 2026-06-27: the generated-vault inventory lane now has a Refarm-side consumer proof
 (`scripts/ci/test-vault-seed-release-consumer.mjs`) that generates a vault fixture, reads the
 generated `package.json` and `inventory.json`, and verifies every `@refarm.dev/*` package consumed
-by the fixture is covered by the `vault-seed-ready` release selection and package checks.
+by the fixture is covered by the `consumer-ready` release selection and package checks.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
 4 or any later item. It records which items are execution-ready, which are deliberately gated, and

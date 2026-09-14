@@ -102,7 +102,7 @@ function requiredBoolean(block, key) {
 function vaultSeedReadyFromConfig() {
 	const config = readJson("refarm.config.json");
 	return config.releasePolicy.packageProfiles
-		.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+		.filter((profile) => profile.tags?.includes("consumer-ready"))
 		.map((profile) => profile.id.replace(/^@refarm\.dev\//u, ""))
 		.sort();
 }
@@ -113,7 +113,7 @@ test("public site vault-seed-ready list follows release policy and handoff facts
 	const facts = extractSiteFacts(source);
 	const releaseCheck = buildReleaseCheckPlan({
 		cwd: ROOT,
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	const releaseSummary = serializeReleaseCheck(releaseCheck);
 	const releasePackages = releaseSummary.packages

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 export {
 	DEFAULT_MODEL_PROVIDER,
@@ -80,6 +81,7 @@ export {
 	packageManagerOverrideDiagnostic,
 	packagePublishDryRunCommand,
 	packageScriptCommand,
+	packageWorkspaceDeployCommand,
 	packageWorkspacePublishDryRunCommand,
 	parsePackageManager,
 } from "./package-manager.js";
@@ -102,12 +104,22 @@ export {
 	parseWorkspaceNamespacePersistence,
 } from "./workspace-namespaces-config.js";
 export {
+	CONFIG_KEY_OWNERSHIP,
+	CONFIG_REQUEST_BLOCK_KEY,
+	CONFIG_TIERS,
+	auditConfigTier,
+	classifyConfigKey,
+	pendingRequests,
+} from "./config-tiers.js";
+export { isUnderDevelopment, readPluginDevelopment } from "./plugin-development.js";
+export {
 	affectedWorkspacePackagesFromChangedPaths,
 	affectedWorkspacePackagesFromGitStatus,
 	changedFilePathsFromGitNameOnly,
 	changedFilePathsFromGitStatus,
 	findWorkspacePackageForPath,
 	findWorkspaceRoot,
+	hasWorkspaceRootMarker,
 } from "./workspace.js";
 
 /**
@@ -130,6 +142,49 @@ export {
 /** The neutral, brand-free env var that names the sovereign DIRECTORY (e.g.
  * the app sets it to ".refarm"). No default in the substrate — the app owns the name. */
 export const SOVEREIGN_DIR_SELECTOR_KEY = "SOVEREIGN_DIR";
+
+// SOVEREIGN_BASE_KEY lives with the resolver that reads it, in ./declared-base.js.
+export { declaredBase, declaredBaseWithOrigin, SOVEREIGN_BASE_KEY } from "./declared-base.js";
+
+/**
+ * The base declarations resolve against: what the node was TOLD, or — absent that — the
+ * OS home directory. The Rust counterpart is NOT `dirs_sovereign_base` (`main.rs:760-776`)
+ * — that function returns the sovereign DIR (`REFARM_HOME`, else `home/SOVEREIGN_DIR`,
+ * else bare home) and never reads `SOVEREIGN_BASE` at all. It is `run_daemon`
+ * (`main.rs:431-446`): it computes `(--refarm-dir ?? dirs_sovereign_base()).parent()` and
+ * sets `SOVEREIGN_BASE` from that unless the env var already won outright. This function's
+ * `dirname(REFARM_HOME)` step below is what keeps that arithmetic aligned with Rust's —
+ * drop the `dirname` and the two diverge by one path segment. That lockstep is what makes
+ * the promise in {@link SOVEREIGN_BASE_KEY}'s doc comment — that the Rust host and this
+ * stack "read identically" — actually true, rather than true only when a caller happens to
+ * export SOVEREIGN_BASE.
+ *
+ * Precedence:
+ *   1. `SOVEREIGN_BASE` (this env var) — an explicit declaration always wins.
+ *   2. `dirname(REFARM_HOME)` — a container declaring `REFARM_HOME=/srv/node/.refarm`
+ *      resolves `/srv/node`, matching the Rust host reading the same variable.
+ *   3. The bare OS home directory.
+ *
+ * `process.cwd()` is deliberately NOT a fallback, at any step, in this function: a TS-side
+ * cwd fallback was the actual defect this replaces — a node's answer changed depending on
+ * which directory the process happened to be started from, so one process could admit an
+ * operation resolved from the operator's home and then refuse it resolved from the
+ * daemon's directory, in the same breath.
+ *
+ * That is not the same claim as "the Rust host never reads cwd" — it does, in one place:
+ * `config_node.rs`'s `declared_base()` still falls back to `current_dir()` (its own doc
+ * comment says so) when `SOVEREIGN_BASE` is unset. That fallback stays unreached in
+ * practice only because `run_daemon` (`main.rs:431-446`) sets `SOVEREIGN_BASE` in-process
+ * before any config-node code runs — except when `refarm_dir.parent()` is `None`, which it
+ * then skips setting, and `declared_base()`'s cwd fallback is what actually answers.
+ *
+ * Step 3 lands on the BARE home directory, not `<home>/<SOVEREIGN_DIR>`, because
+ * {@link sovereignDir} THROWS when the selector is unset (deliberately, so no brand name
+ * is ever assumed) — a base resolver must not throw.
+ */
+// `declaredBase`/`declaredBaseWithOrigin` moved to ./declared-base.js so the two config
+// modules that need them (workspaces-config.js, workspace-namespaces-config.js) can import the
+// resolver WITHOUT importing this barrel, which re-exports them — a cycle. Re-exported below.
 
 /** The config file name inside the sovereign config dir. This IS a fixed substrate
  * convention (the file, not the branded dir), and matches the Rust host. */
@@ -263,12 +318,12 @@ function deepMerge(target, source) {
  * @param {object} current
  * @returns {object}
  */
-function resolveInterpolation(config, current = config) {
+function resolveInterpolation(config, current = config, env = process.env) {
 	if (typeof current === "string") {
 		return current.replace(/\{\{([\w\.]+)\}\}/g, (match, pathStr) => {
 			if (pathStr.startsWith("env.")) {
 				const envVar = pathStr.slice(4);
-				return process.env[envVar] || match;
+				return env[envVar] || match;
 			}
 
 			// Traverse config
@@ -302,9 +357,9 @@ function resolveInterpolation(config, current = config) {
 
 const JsonSource = {
 	name: "json",
-	loadSync(root) {
+	loadSync(root, env = process.env) {
 		let config = {};
-		for (const configPath of [...sovereignConfigPathCandidates(root)].reverse()) {
+		for (const configPath of [...sovereignConfigPathCandidates(root, env)].reverse()) {
 			if (!fs.existsSync(configPath)) continue;
 			try {
 				config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
@@ -322,7 +377,7 @@ const EnvSource = {
 	// a parameter — not a hardcoded literal — is what makes the mapping agnostic:
 	// a white-label sets its prefix and gets `<PREFIX>_SITE_URL`, `<PREFIX>_SCOPE_*`
 	// and `<PREFIX>_PROVIDER_*` for free.
-	loadSync(prefix = DEFAULT_ENV_PREFIX) {
+	loadSync(prefix = DEFAULT_ENV_PREFIX, env = process.env) {
 		// Map common <PREFIX>_ envs to the config structure
 		const config = {};
 		const SITE_URL = `${prefix}_SITE_URL`;
@@ -330,16 +385,16 @@ const EnvSource = {
 		const GIT_HOST = `${prefix}_GIT_HOST`;
 		const SCOPE_PREFIX = `${prefix}_SCOPE_`;
 		const PROVIDER_PREFIX = `${prefix}_PROVIDER_`;
-		if (process.env[SITE_URL] || process.env[REPO_URL]) {
+		if (env[SITE_URL] || env[REPO_URL]) {
 			config.brand = { urls: {} };
-			if (process.env[SITE_URL]) config.brand.urls.site = process.env[SITE_URL];
-			if (process.env[REPO_URL]) config.brand.urls.repository = process.env[REPO_URL];
+			if (env[SITE_URL]) config.brand.urls.site = env[SITE_URL];
+			if (env[REPO_URL]) config.brand.urls.repository = env[REPO_URL];
 		}
-		if (process.env[GIT_HOST]) {
-			config.infrastructure = { gitHost: process.env[GIT_HOST] };
+		if (env[GIT_HOST]) {
+			config.infrastructure = { gitHost: env[GIT_HOST] };
 		}
 		// Support for dynamic scopes from env
-		for (const [key, value] of Object.entries(process.env)) {
+		for (const [key, value] of Object.entries(env)) {
 			if (key.startsWith(SCOPE_PREFIX)) {
 				const scopeKey = key.slice(SCOPE_PREFIX.length).toLowerCase();
 				config.brand = config.brand || {};
@@ -349,7 +404,7 @@ const EnvSource = {
 		}
 		// <PREFIX>_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
 		// e.g. REFARM_PROVIDER_GITHUB_CLIENT_ID → providers.github.clientId
-		for (const [key, value] of Object.entries(process.env)) {
+		for (const [key, value] of Object.entries(env)) {
 			if (!key.startsWith(PROVIDER_PREFIX)) continue;
 			const rest = key.slice(PROVIDER_PREFIX.length); // GITHUB_CLIENT_ID
 			const underscore = rest.indexOf("_");
@@ -411,12 +466,12 @@ const RemoteSource = {
  * @param {string} root
  * @returns {object}
  */
-function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
-	const json = JsonSource.loadSync(root);
-	const env = EnvSource.loadSync(envPrefix);
+function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX, processEnv = process.env) {
+	const json = JsonSource.loadSync(root, processEnv);
+	const env = EnvSource.loadSync(envPrefix, processEnv);
 
 	// Signals
-	const ephemeralEndpoint = process.env[`${envPrefix}_EPHEMERAL_SOURCE`];
+	const ephemeralEndpoint = processEnv[`${envPrefix}_EPHEMERAL_SOURCE`];
 	const persistentEndpoint =
 		env.infrastructure?.remote?.endpoint || json.infrastructure?.remote?.endpoint;
 
@@ -445,13 +500,25 @@ function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
  * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
 export function loadConfig(root = findSovereignRoot(), options = {}) {
-	const envPrefix = resolveEnvPrefix(options.envPrefix);
-	const { precedence } = bootstrapIntent(root, envPrefix);
+	// `options.env`, threaded all the way down. Every function this calls ALREADY took an `env`
+	// parameter — `sovereignConfigPathCandidates`, `resolveEnvPrefix`, the interpolator — and
+	// none of the call sites here passed one, so the injection was honoured by the code a caller
+	// could see and ignored by the code it could not.
+	//
+	// That is not a nuance: `sovereignConfigPathCandidates` reads SOVEREIGN_DIR, which decides
+	// WHICH FILE this loads. A caller that injected an env got its own answer for the prefix and
+	// the process's answer for the path (ISS-103). The CLI sets SOVEREIGN_DIR in-process, so the
+	// daemon and every real invocation were fine and only a harness constructing the call
+	// directly could see it — nine workspace-sync tests, failing with MissingSovereignDirError
+	// while injecting the very variable that was missing.
+	const env = options.env ?? process.env;
+	const envPrefix = resolveEnvPrefix(options.envPrefix, env);
+	const { precedence } = bootstrapIntent(root, envPrefix, env);
 	let config = {};
 
 	const sources = {
-		json: () => JsonSource.loadSync(root),
-		env: () => EnvSource.loadSync(envPrefix),
+		json: () => JsonSource.loadSync(root, env),
+		env: () => EnvSource.loadSync(envPrefix, env),
 	};
 
 	for (const sourceKey of precedence) {
@@ -460,7 +527,7 @@ export function loadConfig(root = findSovereignRoot(), options = {}) {
 		}
 	}
 
-	return resolveInterpolation(config);
+	return resolveInterpolation(config, config, env);
 }
 
 /**

@@ -1,3 +1,5 @@
+import { sovereignDirectories, type SovereignDirectories } from "@refarm.dev/root";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -7,9 +9,29 @@ export function resolveRefarmHome(env = process.env): string {
 	return path.join(os.homedir(), ".refarm");
 }
 
+/** App-owned adapter over the brand-agnostic directory contract. */
+export function resolveRefarmDirectories(env = process.env): SovereignDirectories {
+	return sovereignDirectories(path.resolve(resolveRefarmHome(env)));
+}
+
+/**
+ * Resolve the active declaration/state scope: explicit host root, then a
+ * workspace sidecar that actually exists, then the operator root.
+ */
+export function resolveRefarmScopeRoot(
+	env = process.env,
+	cwd = process.cwd(),
+	exists: (candidate: string) => boolean = fs.existsSync,
+): string {
+	const explicitHome = env.REFARM_HOME?.trim();
+	if (explicitHome) return explicitHome;
+	const workspaceRoot = path.join(cwd, ".refarm");
+	return exists(workspaceRoot) ? workspaceRoot : resolveRefarmHome(env);
+}
+
 /** The installed-plugins root under the refarm home (`<home>/plugins`). */
 export function pluginsBaseDir(env = process.env): string {
-	return path.join(resolveRefarmHome(env), "plugins");
+	return resolveRefarmDirectories(env).plugins;
 }
 
 /**

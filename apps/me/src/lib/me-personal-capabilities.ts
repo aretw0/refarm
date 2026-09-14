@@ -25,7 +25,7 @@ export interface RefarmMePersonalStatus {
 	scheduledWorkSummary: {
 		total: number;
 		due: number;
-		scheduled: number;
+		declared: number;
 		unsupported: number;
 	} | null;
 }

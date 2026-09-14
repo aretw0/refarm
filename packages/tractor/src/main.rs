@@ -13,7 +13,7 @@ use clap::{Args, Parser, Subcommand};
 use futures_util::{SinkExt, StreamExt};
 use tokio::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tractor::{trust::SecurityMode, NativeStorage, TractorNative, TractorNativeConfig};
+use tractor::{trust::SecurityMode, NativeStorage, PluginLoadOutcome, TractorNative, TractorNativeConfig};
 
 #[derive(Parser, Debug)]
 #[command(name = "tractor", about = "Refarm sovereign WASM plugin host")]
@@ -51,6 +51,24 @@ struct DaemonArgs {
     /// WebSocket daemon port
     #[arg(long, default_value_t = 42000)]
     port: u16,
+
+    /// WebSocket daemon bind host. May only NARROW `surfaces.daemon-ws`'s declared
+    /// `expose` (or stay loopback when undeclared) — never widen past it, exactly like
+    /// `http_host` below. Since ADR-093, `daemon::WsServer` authenticates every
+    /// `Sec-WebSocket-Protocol` handshake against the SAME `REFARM_AUTH_POLICY` the HTTP
+    /// sidecar uses, so `surfaces.daemon-ws` may declare `"host:<ip>"` with `"gate":
+    /// "device-token"` exactly like `sidecar-http` — a non-loopback value is only
+    /// accepted when that declaration is present AND a policy is actually configured
+    /// (S1/S3/S5; see `sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind` and
+    /// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md).
+    ///
+    /// `Option`, not a defaulted `String` — see `http_host`'s doc comment for why: under
+    /// S5 (a flag may only narrow, never widen) a CLI default is not neutral, because a
+    /// default value is indistinguishable from an explicit operator choice. `None` means
+    /// "no flag was passed"; the `surfaces.daemon-ws` declaration decides what an absent
+    /// flag resolves to (loopback if it declares `"loopback"` or is absent — S1).
+    #[arg(long)]
+    ws_host: Option<String>,
 
     /// Security mode: strict | permissive | none
     #[arg(long, default_value = "strict")]
@@ -102,9 +120,24 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42001)]
     http_port: u16,
 
-    /// HTTP sidecar bind host.
-    #[arg(long, default_value = "127.0.0.1")]
-    http_host: String,
+    /// HTTP sidecar bind host. May only NARROW `surfaces.sidecar-http`'s declared
+    /// `expose` (or stay loopback when undeclared) — never widen past it. See
+    /// `sidecar::bind_guard::refuse_unguarded_nonloopback_bind` and
+    /// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md (S1/S3/S5).
+    ///
+    /// `Option`, not a defaulted `String`. Under a narrowing rule, a CLI default stops
+    /// being neutral: if this flag always carried a value (its old `default_value =
+    /// "127.0.0.1"`), that value would ALWAYS be present and ALWAYS be loopback, which
+    /// ALWAYS narrows — so a `surfaces.sidecar-http` declaring `host:<ip>` could never
+    /// take effect, ever, and nothing would say so (that was the bug: the whole
+    /// declaration was inert for this surface, and it looked fine because loopback is
+    /// what most runs wanted anyway). A default value is indistinguishable from an
+    /// explicit operator choice — so there cannot be a default here. `None` means "the
+    /// operator did not pass `--http-host`; let the `surfaces` declaration decide."
+    /// `Some(v)` means "the operator IS narrowing" — `v` is validated against the
+    /// declared ceiling exactly as before.
+    #[arg(long)]
+    http_host: Option<String>,
 
     /// Base directory for streams and task-results (default: ~/.refarm)
     #[arg(long)]
@@ -392,6 +425,127 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         )
         .init();
 
+    // The refarm dir the daemon was GIVEN, resolved before ANY declaration is read —
+    // because the base those declarations resolve against is derived from it, and
+    // `surfaces` (immediately below) is the first read.
+    let refarm_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+
+    // WHERE this node's declarations live, injected the same way and for the same reason
+    // as SOVEREIGN_DIR above: told once, read identically by every subsystem. Without it
+    // each resolver asked the OS where the process was standing, so restarting the daemon
+    // from a different directory silently changed which `.refarm/config.json` the node
+    // answered from — a remotely-initiated operation then resolved against a config that
+    // declared something else, refused, and reported only a missing result envelope.
+    //
+    // The base is the PARENT of the sovereign dir, because that is what
+    // `sovereign_config_path` joins the dir name onto. An operator env override wins, so a
+    // project scope stays available — declared, rather than inherited from a `cd`.
+    if std::env::var("SOVEREIGN_BASE").map(|v| v.trim().is_empty()).unwrap_or(true) {
+        // `dirname`'s semantics, NOT `Path::parent()`'s (ISS-023). They differ exactly where it
+        // matters: `Path::new("/").parent()` is `None`, so a sovereign dir at the filesystem root
+        // used to leave SOVEREIGN_BASE UNSET and every later read fell through the chain to
+        // whatever HOME — or, before the step was removed, whatever directory — happened to be
+        // there. `path.dirname("/")` is `"/"`, and the TypeScript resolver has always agreed.
+        std::env::set_var(
+            "SOVEREIGN_BASE",
+            tractor::host::dirname_like_ts_public(&refarm_dir),
+        );
+    }
+
+    // The node says what it is, where whoever can read the node can read it. Published
+    // AFTER the base is settled and BEFORE any declaration is read, so a reader that finds
+    // a descriptor finds the base the node actually went on to use. Best effort: a node
+    // that cannot describe itself still works, and absence reads as "this node does not
+    // say" rather than as a wrong answer.
+    // The base as the node RESOLVED it, never `unwrap_or_default()`. That default published an
+    // EMPTY path as this node's base whenever the variable was unset — a descriptor stating a
+    // wrong answer as a fact, which is worse than one that says nothing (ISS-023).
+    tractor::node_descriptor::publish_for_this_process(
+        &refarm_dir,
+        &tractor::host::declared_base_public(),
+        &std::env::var("SOVEREIGN_DIR").unwrap_or_default(),
+    );
+
+    // Resolve the `surfaces` declaration ONCE, fs-only, BEFORE any boot work — a
+    // malformed declaration, or one that names a gate a surface cannot enforce (S3, e.g.
+    // `daemon-ws` declaring anything but `"loopback"`), must fail at LOAD, not partway
+    // through — or after — a full runtime boot. Same "preflight before boot" doctrine as
+    // the WS host check immediately below.
+    let surfaces = tractor::host::surfaces_from_config().map_err(|reason| anyhow::anyhow!(reason))?;
+    // Resolved once, alongside `surfaces` itself, and reused below for `WsServer::new` —
+    // `preflight_ws_bind_host`/`WsServer::start` never read `.refarm/config.json`
+    // themselves (same pattern as `declared_surface` for the HTTP sidecar further down).
+    let declared_ws_surface = surfaces.get(tractor::host::SURFACE_DAEMON_WS).cloned();
+
+    // `refarm_dir` was resolved above, before the first declaration read — the auth policy
+    // path below, the sidecar's dirs and the Scarecrow audit base all reuse that one
+    // answer. One dir, decided once, never re-derived.
+
+    // WHERE the per-device auth policy comes from — the declaration first, the env only as
+    // an override. A `surfaces` entry with `"gate": "device-token"` IS the opt-in: it
+    // derives `<refarm-dir>/auth-policy.json`, the same conventional file `refarm auth
+    // enroll` writes, so declaring the gate is enough and the operator never plumbs
+    // REFARM_AUTH_POLICY by hand to be believed. Both facts are known only HERE (the
+    // declaration was just read; the refarm dir came from the CLI), so this is where the
+    // source is built — then threaded into every surface, never re-derived from globals.
+    let auth_source = tractor::sidecar::AuthPolicySource::new(
+        refarm_dir.clone(),
+        tractor::host::any_surface_declares_device_token_gate(&surfaces),
+    );
+
+    // Preflight the WS bind BEFORE booting anything. The WS server is started at the very
+    // end of `run_daemon`, so its own (load-bearing) bind guard would otherwise fire only
+    // after storage is open, plugins are instantiated and the supervisor + audit
+    // subscriber are running — and that late `?` also returned past `tractor.shutdown()`,
+    // dropping a booted runtime on the floor. Refusing here means nothing was started, so
+    // there is nothing to tear down, and the operator sees the reason immediately instead
+    // of after a full boot.
+    //
+    // Also RESOLVES the bind host from the (now-optional) `--ws-host` flag and the
+    // `surfaces.daemon-ws` declaration: an absent flag lets the declaration decide
+    // (loopback if it declares `"loopback"` or is absent — S1), a present flag is the
+    // operator narrowing/asserting one, checked against the declared ceiling exactly as
+    // the HTTP sidecar's `--http-host` always has. Resolved ONCE here and reused below
+    // for `WsServer::new`, so the value that was validated is the exact value that gets
+    // bound.
+    //
+    // `declared_ws_surface` is REBOUND to the EFFECTIVE declaration `preflight_ws_bind_host`
+    // returns: if `surfaces.daemon-ws` declares `"tailnet"`, that has ALREADY been resolved
+    // (a `tailscale status --json` ask, ≤~2s) to a concrete `host:<ip>` by this call — so
+    // `WsServer::new` below never re-asks, and its own re-validation at actual bind time
+    // sees the exact same resolved address, not a second (possibly different) answer.
+    let (resolved_ws_host, declared_ws_surface) = daemon::preflight_ws_bind_host(
+        args.ws_host.as_deref(),
+        declared_ws_surface.as_ref(),
+        &auth_source,
+    )?;
+
+    // THE auth policy resolution — ONCE per daemon start, right here, and the RESULT is
+    // threaded into both gates below (the HTTP sidecar's middleware and the WS handshake).
+    // It used to happen twice: `sidecar::start` and `WsServer::start` each held the SOURCE
+    // and each resolved for itself, so a declared-but-unenrolled gate printed its
+    // derived-but-ABSENT warning twice per boot, ~10µs apart — and, worse than the noise,
+    // two independent reads of one file are two answers that can disagree. Both gates now
+    // receive a `ResolvedAuthPolicy` and no source at all, so neither can read it again.
+    //
+    // Placed AFTER the WS preflight deliberately: the preflight's job is to refuse a bad
+    // `--ws-host` as the daemon's FIRST act, using `auth_policy_configured`'s cheap
+    // no-I/O-no-log peek, so nothing is read from disk and nothing is claimed about the gate
+    // until a bind we would actually accept is on the table. The peek and this resolution
+    // answer the same predicate and cannot disagree (see `sidecar::auth`).
+    let auth_policy = tractor::sidecar::ResolvedAuthPolicy::resolve(&auth_source);
+
+    // …and ONE watcher that keeps that answer CURRENT. Resolving once was right; freezing
+    // once was not. With the policy read only at boot, enrolling a device (`refarm auth
+    // enroll` writes this very file) did not admit it until the whole runtime was restarted
+    // — and revoking one did not refuse it until then either. Restarting a runtime to admit
+    // a phone is the wrong granularity; a credential policy is state that must be re-read
+    // when it changes. The watcher re-reads the SAME resolved path and swaps the value both
+    // gates hold — one shared handle, so neither can drift from the other, and neither
+    // re-resolves. Fail-closed on every re-read, exactly as at boot (see
+    // `sidecar::auth::AuthGate::reload_if_changed`). A no-op when no gate is declared.
+    auth_policy.spawn_reload_watcher();
+
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
         "none" => SecurityMode::None,
@@ -438,6 +592,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         match tractor.load_plugin(path).await {
             Ok(mut handle) => {
                 tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
+                // Record the request as satisfied BEFORE ingest/pool-staging, which can
+                // fail without un-loading the plugin — it did become a channel.
+                tractor.record_plugin_request(
+                    path,
+                    PluginLoadOutcome::Loaded(handle.id.clone()),
+                );
                 maybe_ingest_on_load(&mut handle, path, ingest_policy).await?;
                 // Stage the pool's extra stores (opt-in: concurrentSafe +
                 // REFARM_PLUGIN_POOL=N>1); a no-op otherwise.
@@ -450,6 +610,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 tractor.register_for_events(handle);
             }
             Err(e) => {
+                // Record the request as unsatisfied even on the fail-fast path: the
+                // process may still bail below, but the record is cheap and correct
+                // either way, and cheaper to write unconditionally than to duplicate.
+                // Carries the REAL error (`e.to_string()`), not a canned string — `e` is
+                // still used below (`.to_string()` takes `&self`, no move).
+                tractor.record_plugin_request(path, PluginLoadOutcome::Failed(e.to_string()));
                 if load_policy == PluginLoadPolicy::FailFast {
                     anyhow::bail!(
                         "required plugin failed to load during startup (path={}): {e}",
@@ -510,8 +676,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     }
 
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
+    // Retained past the spawn below so the WS server's shutdown can drain the SAME
+    // effort store the sidecar dispatches into (`with_shutdown_drain`). `None` when
+    // no sidecar runs — there is then nothing that could be in flight.
+    let mut sidecar_state: Option<tractor::sidecar::SidecarState> = None;
     if args.http_port > 0 {
-        let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+        let base_dir = refarm_dir.clone();
         match tractor::sidecar::SidecarState::new(
             tractor.plugin_channels.clone(),
             tractor.cancel_flags.clone(),
@@ -526,15 +696,35 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 let state = state
                     .with_reload(tractor.clone())
                     .with_registry(tractor.plugin_registry.clone());
+                // `Option<String>`, threaded straight through: `start` resolves the actual
+                // bind host itself (absent flag ⇒ the declaration decides; present flag ⇒
+                // the operator is narrowing), because that resolution needs `auth_policy`
+                // and `declared_surface`, both already local to `start`.
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
+                // Resolved once, above, alongside the WS preflight — `start` never reads
+                // `.refarm/config.json` itself (see its doc comment).
+                let declared_surface = surfaces.get(tractor::host::SURFACE_SIDECAR_HTTP).cloned();
+                // The policy RESOLVED once above — cloned, not re-resolved. The WS server
+                // below gets the very same value, so both gates enforce one policy read
+                // once, and the enable/deny-all line was logged exactly once, at boot.
+                let sidecar_auth_policy = auth_policy.clone();
+                sidecar_state = Some(state.clone());
                 tokio::spawn(async move {
-                    if let Err(e) = tractor::sidecar::start(state, http_host, http_port).await {
+                    if let Err(e) = tractor::sidecar::start(
+                        state,
+                        http_host,
+                        http_port,
+                        declared_surface,
+                        sidecar_auth_policy,
+                    )
+                    .await
+                    {
                         tracing::error!("HTTP sidecar error: {e}");
                     }
                 });
                 tracing::info!(
-                    host = %args.http_host,
+                    http_host_flag = %args.http_host.as_deref().unwrap_or("<absent — surfaces.sidecar-http decides>"),
                     port = args.http_port,
                     "HTTP sidecar started (ADR-060)"
                 );
@@ -546,7 +736,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     }
 
     // ── Scarecrow audit subscriber ────────────────────────────────────────────
-    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+    let scarecrow_base = refarm_dir.clone();
     tractor::observer::spawn_audit_subscriber(
         tractor.telemetry.clone(),
         scarecrow_base.clone(),
@@ -558,17 +748,33 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         scarecrow_base.display()
     );
 
-    daemon::WsServer::new(
+    // Hold the result instead of `?`-ing it: a `?` here returned PAST `tractor.shutdown()`,
+    // so any WS start failure (bind refused, port taken) leaked a fully booted runtime —
+    // plugin instances, supervisor, audit subscriber, open storage — instead of shutting
+    // it down. Shut down first, then report whichever failure happened.
+    let ws_server = daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
+        resolved_ws_host.clone(),
         config.port,
         tractor.telemetry.clone(),
         tractor.plugin_channels.clone(),
         tractor.event_router.clone(),
-    )
-    .start()
-    .await?;
+        declared_ws_surface,
+        auth_policy,
+    );
+    // A shutdown signal (SIGINT or SIGTERM) now drains the efforts already in
+    // flight — bounded by the deadline those efforts themselves declared — before
+    // the runtime below is torn down. Without a sidecar there is no effort store,
+    // so there is nothing to drain and the shutdown is the one it always was.
+    let ws_server = match sidecar_state.as_ref() {
+        Some(state) => ws_server.with_shutdown_drain(state),
+        None => ws_server,
+    };
+    let ws_result = ws_server.start().await;
 
-    tractor.shutdown().await?;
+    let shutdown_result = tractor.shutdown().await;
+    ws_result?;
+    shutdown_result?;
     Ok(())
 }
 

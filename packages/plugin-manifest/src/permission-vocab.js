@@ -26,6 +26,7 @@ export const PERMISSIONS = Object.freeze([
 	{ id: "fs:write", label: "Write and edit files", risk: "medium" },
 	{ id: "shell:spawn", label: "Run system commands", risk: "high" },
 	{ id: "network:outbound", label: "Make network requests", risk: "medium" },
+	{ id: "connection:use", label: "Use a declared connection", risk: "medium" },
 ]);
 
 /** The set of known permission id strings. @type {ReadonlySet<string>} */

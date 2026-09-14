@@ -64,6 +64,106 @@ async fn sidecar_get_node_returns_graph_node() {
 }
 
 #[tokio::test]
+async fn sidecar_get_node_stamps_default_context_when_absent() {
+    // Every store_node call site in this Rust host passes context: None today
+    // (grep '@context' packages/tractor/src returns nothing) — this is the
+    // realistic shape of a node this host itself wrote: no `@context` in the
+    // stored payload and no `context` column value either.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:tractor:budget-observation:one",
+        "BudgetObservation",
+        serde_json::json!({
+            "@id": "urn:tractor:budget-observation:one",
+            "@type": "BudgetObservation",
+            "refarm.outcome": "done",
+        }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!(
+        "{}/nodes/urn:tractor:budget-observation:one",
+        base(port)
+    ))
+    .await
+    .unwrap()
+    .json()
+    .await
+    .unwrap();
+
+    let node = &body["node"];
+    assert_eq!(
+        node["@context"].as_str().unwrap(),
+        "urn:sovereign:schema:v1",
+        "a node with no @context anywhere (payload or context column) must be \
+         stamped with the sovereign-runtime default at the serving boundary",
+    );
+}
+
+#[tokio::test]
+async fn sidecar_get_node_preserves_existing_context() {
+    // A node replicated in from a TS producer (or any writer) that already
+    // embedded @context directly in its JSON payload must keep that value —
+    // the serving boundary must never clobber a producer's own choice.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:test:help-page",
+        "HelpPage",
+        serde_json::json!({
+            "@id": "urn:test:help-page",
+            "@type": "HelpPage",
+            "@context": "https://schema.org/",
+        }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes/urn:test:help-page", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let node = &body["node"];
+    assert_eq!(
+        node["@context"].as_str().unwrap(),
+        "https://schema.org/",
+        "an already-present @context in the stored payload must win over the default",
+    );
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_stamps_context_on_every_row() {
+    // GET /nodes (queryNodes) must apply the same stamping as GET /nodes/:id
+    // (getNode) — both route through node_value_from_row, but this pins that
+    // the list endpoint is not a second, divergent code path.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:tractor:session:one",
+        "Session",
+        serde_json::json!({ "@id": "urn:tractor:session:one", "@type": "Session" }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes?type=Session&limit=10", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let nodes = body["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(
+        nodes[0]["@context"].as_str().unwrap(),
+        "urn:sovereign:schema:v1",
+    );
+}
+
+#[tokio::test]
 async fn sidecar_query_nodes_filters_by_type_and_limit() {
     let ns = storage_path();
     write_node(
@@ -98,4 +198,158 @@ async fn sidecar_query_nodes_filters_by_type_and_limit() {
     assert_eq!(nodes.len(), 1);
     assert_eq!(nodes[0]["@type"].as_str().unwrap(), "SovereignConfig");
     assert_eq!(body["total"].as_u64().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_reports_truncation_when_limit_undercounts_storage() {
+    // 5 stored, limit=2: the ceiling bites, and the response must say so — both HOW MANY
+    // exist (`stored`) and THAT the page is incomplete (`truncated`). `total` keeps meaning
+    // "rows in THIS response" (pinned by `sidecar_query_nodes_filters_by_type_and_limit`
+    // above) — it must NOT silently become the store-wide count, which would collide with
+    // `apps/refarm/src/commands/budget.ts`'s own `summary.total` (== observations returned).
+    let ns = storage_path();
+    for i in 0..5 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes?type=Task&limit=2", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let nodes = body["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 2, "limit=2 must still cap the response body");
+    assert_eq!(
+        body["total"].as_u64().unwrap(),
+        2,
+        "total must stay 'how many rows are in this response', unchanged by this fix"
+    );
+    assert_eq!(
+        body["stored"].as_u64().unwrap(),
+        5,
+        "stored must name the real count across the whole type, not the capped page"
+    );
+    assert_eq!(
+        body["truncated"].as_bool().unwrap(),
+        true,
+        "5 stored > 2 returned: this response is not the whole answer, and must say so"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_reports_no_truncation_when_limit_covers_everything() {
+    let ns = storage_path();
+    for i in 0..3 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes?type=Task&limit=10", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let nodes = body["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 3);
+    assert_eq!(body["stored"].as_u64().unwrap(), 3);
+    assert_eq!(
+        body["truncated"].as_bool().unwrap(),
+        false,
+        "limit=10 covers all 3 stored rows: nothing was left out, so truncated must be false"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_offset_reaches_rows_past_the_first_page() {
+    // ISS-042. Before this, `truncated: true` was an observation with no remedy: the response
+    // said rows had been left out and offered the caller no way to ask for them. `--limit`
+    // could not help — `MAX_NODES_PER_RESPONSE` clamps it, and the default was already equal to
+    // the ceiling, so on a record past 100 rows the very first default run printed an
+    // instruction ("raise --limit") that did nothing.
+    let ns = storage_path();
+    for i in 0..5 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let mut seen: Vec<String> = Vec::new();
+    let mut offset = 0;
+    loop {
+        let body: serde_json::Value = reqwest::get(format!(
+            "{}/nodes?type=Task&limit=2&offset={offset}",
+            base(port)
+        ))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+        assert_eq!(body["offset"].as_u64().unwrap(), offset as u64);
+        assert_eq!(body["stored"].as_u64().unwrap(), 5, "stored never depends on the page");
+        let page = body["nodes"].as_array().unwrap();
+        for node in page {
+            seen.push(node["@id"].as_str().unwrap().to_string());
+        }
+        if !body["truncated"].as_bool().unwrap() {
+            break;
+        }
+        offset += page.len();
+        assert!(offset <= 5, "truncated must go false on the last page or this never ends");
+    }
+
+    seen.sort();
+    seen.dedup();
+    assert_eq!(seen.len(), 5, "paging by offset reaches every stored row exactly once");
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_last_page_is_not_truncated_even_though_stored_exceeds_it() {
+    // The arithmetic `truncated` uses, stated as its own case: `stored`(5) is greater than the
+    // rows this page carries(1), and yet nothing remains. Rows before the offset were skipped
+    // ON PURPOSE and are reachable by asking again, so "is there more" can only mean more
+    // BEYOND this page. Reading it as `stored > nodes.len()` would leave a caller paging
+    // forever, one empty page at a time.
+    let ns = storage_path();
+    for i in 0..5 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value =
+        reqwest::get(format!("{}/nodes?type=Task&limit=2&offset=4", base(port)))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+    assert_eq!(body["nodes"].as_array().unwrap().len(), 1);
+    assert_eq!(body["stored"].as_u64().unwrap(), 5);
+    assert_eq!(body["truncated"].as_bool().unwrap(), false);
 }

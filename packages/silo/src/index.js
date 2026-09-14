@@ -226,6 +226,39 @@ export class SiloCore {
 	}
 
 	/**
+	 * WHAT SECRETS EXIST, WITHOUT READING ANY OF THEM.
+	 *
+	 * `listSecrets` returns VALUES, so nothing that shows the operator a list of credentials may
+	 * call it — such a list travels to a terminal, a log, a phone and a JSON consumer. The
+	 * account-aware model design (D2) requires this as its own primitive rather than as a filtered
+	 * call to that one, and the difference is not only the values:
+	 *
+	 * `listSecrets` OMITS entries this build cannot read. A secret protected by a future scheme is
+	 * therefore invisible to it, and a catalog reconciled against that listing would call the
+	 * matching descriptor `incomplete` — sending the operator to authenticate again over a
+	 * credential that is still there. Here an unreadable secret is REPORTED, with `readable: false`,
+	 * which is the third state that repair depends on.
+	 *
+	 * @param {string} namespace
+	 * @returns {Promise<Array<{id: string, ref: string, readable: boolean, protection: string}>>}
+	 */
+	async listSecretDescriptors(namespace) {
+		const entries = this._readStore("secrets").secrets?.[namespace] || {};
+		return Object.entries(entries)
+			.map(([id, raw]) => {
+				const entry = classifySecretEntry(raw);
+				return {
+					id,
+					ref: `${namespace}/${id}`,
+					readable: Boolean(entry.present && entry.readable),
+					// A legacy bare string carries no scheme; it is readable plaintext by definition.
+					protection: entry.present ? (entry.scheme ?? SILO_SECRET_PROTECTION_SCHEME) : "absent",
+				};
+			})
+			.sort((a, b) => a.id.localeCompare(b.id));
+	}
+
+	/**
 	 * Remove one namespaced secret.
 	 * @param {string} namespace
 	 * @param {string} id

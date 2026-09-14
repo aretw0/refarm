@@ -15,3 +15,5 @@ Pre-publish baseline (split from `initial-contracts-release.md` on 2026-07-03): 
 protected surface (serialized lock/handoff policy) and is not in the `vault-seed-ready`
 first-publish lane. It must be first-published through its own explicit decision; fold further
 pre-publication schema changes into this changeset instead of stacking new ones.
+
+Enters the `consumer-ready` release selection as a support package: `vault-contract-v1` imports its manifest:v1 types at runtime, so a lane that ships that must ship this. The documented publication hold (fixtures, negative trust tests, an authoring example) is met by `src/fixtures.js`, the 23 rejection cases in `src/validate.test.js`, and the README's "Define Your Plugin Manifest" section; installation, trust and runtime hosting stay host-owned.

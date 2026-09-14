@@ -101,7 +101,15 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 	let redirectUriForExchange = REDIRECT_URI;
 
 	try {
-		if (callbacks.onManualCodeInput) {
+		// NOTHING TO WAIT FOR WHEN THE SERVER WAS SKIPPED. Racing a disabled callback server
+		// against the paste prompt printed "falling back to pasted redirect URL" AFTER the prompt
+		// was already on screen — two things owning the terminal at once, which is what an
+		// operator described as "clunky" on 2026-08-28. When the manual path was ASKED for, the
+		// only thing happening is the paste.
+		if (callbacks.onManualCodeInput && callbacks.skipCallbackServer) {
+			const manualInput = await callbacks.onManualCodeInput();
+			code = parseCodeFromInput(manualInput).code;
+		} else if (callbacks.onManualCodeInput) {
 			let manualInput: string | undefined;
 			const manualPromise = callbacks
 				.onManualCodeInput()

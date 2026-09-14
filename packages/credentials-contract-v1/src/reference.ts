@@ -191,6 +191,7 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 		}
 
 		const statusListed = await this.ensureCredentialStatus(credential, issuer.id);
+		const issuanceDate = statusListed.issuanceDate ?? nowIso();
 		const unsigned: VerifiableCredential = {
 			...statusListed,
 			"@context": statusListed["@context"] ?? DEFAULT_CONTEXT,
@@ -198,7 +199,13 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 				? statusListed.type
 				: [VC_TYPE, ...statusListed.type],
 			issuer: issuer.id,
-			issuanceDate: statusListed.issuanceDate ?? nowIso(),
+			issuanceDate,
+			// `withinValidity` (used below in verifyCredential) is DEFAULT-ON in the wallet's own
+			// verify policy (packages/wallet/src/credentials.ts's DEFAULT_WALLET_VERIFY_POLICY), so a
+			// credential with no validity window vacuously passes it forever. Default `validFrom` to
+			// the same instant as `issuanceDate` — the credential is valid from the moment it exists
+			// unless the caller says otherwise — so the check has something real to check.
+			validFrom: statusListed.validFrom ?? issuanceDate,
 		};
 
 		const signature = await this.identity.sign(issuer.id, credentialPayload(unsigned));
@@ -526,6 +533,31 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 						"credential issuer does not match signature identity",
 					);
 				}
+				// LOCAL self-check (2026-08-04): `identity.verify()` above only confirms a valid
+				// signature exists and that its signer's id matches the issuer — it never confirms the
+				// specific KEY the proof CLAIMS (`verificationMethod`) is the key that actually produced
+				// the signature. `result.identity.publicKey` is the resolved signer's real key, already
+				// on `VerificationResult` (identity-contract-v1's `types.ts`); comparing it against
+				// `credential.proof.verificationMethod` closes that gap for every credential whose
+				// issuer is an identity THIS repo's own `identity.verify()` can resolve — true of every
+				// scenario exercised in this tree today (self-issued or peer-issued within the same
+				// identity store).
+				//
+				// DEFERRED, on purpose, not by omission: a credential issued by a genuine third party —
+				// a foreign DID whose key material this repo cannot resolve locally — needs real DID
+				// resolution (fetch/parse a DID document, extract + cache the verification method's key
+				// material, decide whether to trust the method at all). That subsystem does not exist
+				// anywhere in this repo. The sibling authorization package already scoped exactly this
+				// out for v1 for its own receipts — see
+				// packages/authorization-contract-v1/src/sovereign-signer.ts:22-24 ("NOT a resolver for
+				// arbitrary third-party signatures — that needs a DID/verificationMethod resolver, out
+				// of scope for v1"). This is the same decision, same scope, made here for credentials.
+				if (checks.signature.ok && credential.proof.verificationMethod !== result.identity.publicKey) {
+					checks.signature = fail(
+						"credential_verification_method_mismatch",
+						"credential proof.verificationMethod does not match the resolved signer's public key",
+					);
+				}
 			} catch (error) {
 				checks.signature = fail(
 					"credential_signature_verify_threw",
@@ -598,6 +630,18 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 					checks.signature = fail(
 						"presentation_holder_signature_mismatch",
 						"presentation holder does not match signature identity",
+					);
+				}
+				// LOCAL self-check, symmetric with verifyCredential's — see the dated note there
+				// (2026-08-04, citing sovereign-signer.ts:22-24) for why this is scoped to locally
+				// resolvable holders and why third-party DID resolution is deferred, not silent.
+				if (
+					checks.signature.ok &&
+					presentation.proof.verificationMethod !== result.identity.publicKey
+				) {
+					checks.signature = fail(
+						"presentation_verification_method_mismatch",
+						"presentation proof.verificationMethod does not match the resolved signer's public key",
 					);
 				}
 			} catch (error) {

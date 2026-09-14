@@ -11,6 +11,7 @@ import {
 	type CommandPlanStepRunResult,
 	type CommandProcessSpec,
 } from "@refarm.dev/cli/command-plan";
+import { createProcessHandoffDisplay, runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations,
 	buildWorkspaceSourceCachePlan,
@@ -29,18 +30,83 @@ import {
 	type WorkspaceSweepSummary,
 } from "@refarm.dev/cli/workspace-sweep";
 import {
+	CONFIG_FILE_NAME,
+	declaredBase,
 	declaredWorkspaceFromConfig,
 	declaredWorkspacesFromConfig,
 	loadConfig,
+	sovereignDir,
 	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
+import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import { emitCommandRefusal } from "./command-refusal.js";
+import {
+	runWorkspaceAdd,
+	WorkspaceAddRefusal,
+	type WorkspaceAddOptions,
+} from "./workspace-add.js";
+import {
+	runWorkspaceCommandAdd,
+	runWorkspaceCommandRemote,
+	runWorkspaceCommandRemove,
+	WorkspaceCommandAddRefusal,
+} from "./workspace-command-add.js";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
+import {
+	describeNothingToSync,
+	runWorkspaceSync,
+	WorkspaceSyncRefusal,
+	type WorkspaceSyncOptions,
+} from "./workspace-sync.js";
+
+const WORKSPACE_HELP_COMMAND = refarmCommand(["workspace", "--help"]);
+const WORKSPACE_ADD_COMMAND = refarmCommand(["workspace", "add"]);
+
+/**
+ * The action boundary — the same one `commands/intention.ts` adopted in 0534737b, and
+ * for the same reason: a validation error must REFUSE, not throw. An operator-facing
+ * command must never surface a raw Node stack trace, and a `--json` consumer must get
+ * an envelope on the error path too.
+ *
+ * Found by `test/architecture/cli-refusal-conformance.test.ts`: `refarm workspace
+ * sources materialize` (and `refresh`) with neither `--dry-run` nor `--run` threw
+ * straight out of the action. Every `throw` below stays exactly where it is — this is
+ * the single place they stop being internal signals.
+ */
+function failWorkspace(operation: string, options: { json?: boolean }, error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	emitCommandRefusal({
+		command: "workspace",
+		operation,
+		options,
+		error: "workspace-invalid-request",
+		message,
+		nextAction: `Run \`${WORKSPACE_HELP_COMMAND}\` to see the accepted options.`,
+		nextCommands: [WORKSPACE_HELP_COMMAND],
+		humanHints: [WORKSPACE_HELP_COMMAND],
+	});
+}
+
+/** Wrap an action so a thrown validation error becomes the repo's refusal shape
+ *  instead of an uncaught exception. */
+function guardedWorkspace<TOptions extends { json?: boolean }>(
+	operation: string,
+	handler: (options: TOptions, command: Command) => void,
+): (options: TOptions, command: Command) => void {
+	return (options, command) => {
+		try {
+			handler(options, command);
+		} catch (error) {
+			failWorkspace(operation, options, error);
+		}
+	};
+}
 
 export interface WorkspaceExecutionCommandOptions {
 	cwd?: string;
@@ -190,6 +256,7 @@ function printDeclaredWorkspaces(workspaces: DeclaredWorkspaceConfig[]): void {
 	console.log(chalk.bold("Configured workspaces"));
 	if (workspaces.length === 0) {
 		console.log(chalk.dim("  none declared"));
+		console.log(chalk.dim(`  declare one: ${WORKSPACE_ADD_COMMAND}`));
 		return;
 	}
 	for (const workspace of workspaces) {
@@ -210,6 +277,116 @@ function loadDeclaredWorkspaces(
 	return declaredWorkspacesFromConfig(config, { baseDir });
 }
 
+/** One entry of a workspace's declared command allowlist (from `@refarm.dev/config`; runtime
+ * shape carried by `normalizeWorkspaceCommands`). Bridged locally so this file doesn't depend on
+ * the base config type exposing it. */
+export interface WorkspaceDeclaredCommand {
+	run: string[];
+	cwd?: string;
+	description?: string;
+	remote?: true;
+	result?: "operation-result.v1";
+	/** PROVENANCE — absent means the operator authored this command directly
+	 *  (`refarm workspace command add`); `"workspace-offer"` means it was accepted
+	 *  from the workspace's own declaration (`refarm workspace sync`). The same
+	 *  distinction `workspace_source` draws for a session's attribution
+	 *  (`./ask.ts`), one layer down. Never set by a workspace's own offer — see
+	 *  `parseWorkspaceOffer`'s `ALLOWED_COMMAND_KEYS`, which does not include it. */
+	source?: "workspace-offer";
+}
+
+/** How a resolved declared command is actually executed — injected so the resolver is testable
+ * without spawning a process, and so a remote surface can swap in a streaming runner later. */
+export interface WorkspaceRunSpec {
+	command: string;
+	args: string[];
+	cwd: string;
+	env?: NodeJS.ProcessEnv;
+}
+export type WorkspaceRunner = (spec: WorkspaceRunSpec) => Promise<number>;
+
+export interface WorkspaceRunResult {
+	workspace: string;
+	command: string;
+	argv: string[];
+	cwd: string;
+	exitCode: number;
+}
+
+function workspaceCommands(
+	workspace: DeclaredWorkspaceConfig,
+): Record<string, WorkspaceDeclaredCommand> {
+	return (
+		(workspace as { commands?: Record<string, WorkspaceDeclaredCommand> }).commands ?? {}
+	);
+}
+
+/**
+ * The real runner — a thin caller of the `@refarm.dev/process-handoff` boundary
+ * (`runProcessHandoff`) with `capture: false`, which the boundary maps to INHERITED
+ * stdio, so a local `run` is fully interactive (the command's own prompts/notices/
+ * streaming reach the terminal — e.g. serpro-vpn's "approve the push" + "Conectado"). A
+ * command that holds (a VPN tunnel) holds this too.
+ *
+ * Deliberately NOT given `timeout` or `outputCap`: those are guarantees the boundary
+ * grew for the connection probe (`commands/connection.ts`'s `runProbeProcess`), a
+ * short-lived, non-interactive check. This runner is the opposite case — an operator
+ * mid-login is exactly who a timeout would kill, which is the pain this whole lane
+ * (`docs/CONVERGENCE-LANE.md`) exists to fix. `spawnErrorAsResult` IS used, so a missing
+ * binary or bad cwd is a result to branch on rather than a rejection to catch — but the
+ * observable behavior is unchanged: exit code 127, with the same logged message.
+ */
+async function defaultWorkspaceRunner(spec: WorkspaceRunSpec): Promise<number> {
+	const result = await runProcessHandoff(
+		{
+			command: spec.command,
+			args: spec.args,
+			cwd: spec.cwd,
+			display: createProcessHandoffDisplay(spec.command, spec.args),
+		},
+		{ capture: false, env: spec.env, spawnErrorAsResult: true },
+	);
+	if (result.spawnError) {
+		console.error(chalk.red(`Failed to run: ${result.spawnError.message}`));
+		return 127;
+	}
+	return result.exitCode;
+}
+
+/**
+ * Resolve a NAMED declared command in a workspace and run it. This is an operation catalog, not a
+ * shell: the name must be in the workspace's `commands` allowlist (config data); anything else is
+ * rejected. Refarm holds only the argv + cwd; the logic lives in the workspace (e.g. rcdc5's
+ * `@rcdcp/serpro-vpn`). The boundary that lets a remote surface trigger it safely.
+ */
+export async function runDeclaredWorkspaceCommand(
+	input: { workspace: string; command: string; extraArgs: string[] },
+	deps: WorkspaceCommandDeps | undefined,
+	runner: WorkspaceRunner = defaultWorkspaceRunner,
+): Promise<WorkspaceRunResult> {
+	const baseDir = deps?.cwd?.() ?? declaredBase();
+	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
+	const workspace = declaredWorkspaceFromConfig(config, input.workspace, { baseDir });
+	if (!workspace) {
+		throw new Error(`Workspace not declared in config: ${input.workspace}`);
+	}
+	const commands = workspaceCommands(workspace);
+	const declared = commands[input.command];
+	if (!declared) {
+		const names = Object.keys(commands);
+		throw new Error(
+			`Command "${input.command}" is not declared for workspace "${input.workspace}". ` +
+				`Declared commands: ${names.length ? names.join(", ") : "(none)"}`,
+		);
+	}
+	const cwd = declared.cwd ? path.join(workspace.absolutePath, declared.cwd) : workspace.absolutePath;
+	const argv = [...declared.run, ...input.extraArgs];
+	const [command, ...args] = argv;
+	if (!command) throw new Error(`Command "${input.command}" resolved to an empty argv.`);
+	const exitCode = await runner({ command, args, cwd, env: deps?.env });
+	return { workspace: workspace.id, command: input.command, argv, cwd, exitCode };
+}
+
 function resolveWorkspaceExecutionCwd(
 	options: WorkspaceExecutionCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
@@ -219,8 +396,20 @@ function resolveWorkspaceExecutionCwd(
 	pathResolution: WorkspacePathResolution | null;
 } {
 	if (options.cwd) return { cwd: options.cwd, declaredWorkspace: null, pathResolution: null };
-	const baseDir = deps?.cwd?.() ?? process.cwd();
-	if (!options.workspace) return { cwd: baseDir, declaredWorkspace: null, pathResolution: null };
+	// Two different wants behind one variable, split here rather than reusing a single
+	// `baseDir`: with no `--workspace`, the caller wants the PROJECT directory this process
+	// is standing in (fed straight to `buildWorkspaceExecutionStatus`, whose own default is
+	// `process.cwd()` — inspecting package manager/turbo/cache state HERE). With
+	// `--workspace`, it wants the NODE's base, to look the id up in the declared-workspace
+	// catalog, same as every other call site in this file. `declaredBase()` no longer
+	// defaults to cwd, so collapsing this into one resolution would make the flagless path
+	// silently inspect the node's OS home instead of the operator's actual project.
+	if (!options.workspace) {
+		// os-resolution: project — the comment above says it deliberately: the operator actual project, never the node OS home
+		const cwd = deps?.cwd?.() ?? process.cwd();
+		return { cwd, declaredWorkspace: null, pathResolution: null };
+	}
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
 	const declaredWorkspace = declaredWorkspaceFromConfig(config, options.workspace, { baseDir });
 	if (!declaredWorkspace) {
@@ -335,7 +524,7 @@ function printWorkspaceStatus(
 	deps: WorkspaceCommandDeps | undefined,
 	operation: "execution" | "status" = "status",
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const observations = observeDeclaredWorkspacesExecution(
 		loadDeclaredWorkspaces(deps, baseDir),
 		deps,
@@ -359,7 +548,7 @@ function printWorkspaceMounts(
 	options: WorkspaceMountsCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const observations = observeDeclaredWorkspacesExecution(
 		loadDeclaredWorkspaces(deps, baseDir),
 		deps,
@@ -395,7 +584,7 @@ function printWorkspaceSources(
 	options: WorkspaceSourcesCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	if (options.json) {
 		printJson(
@@ -435,8 +624,21 @@ function printWorkspaceSources(
 	}
 }
 
+/** The NODE's catalog file, absolute. Never a relative `.refarm/config.json`: that string reads as
+ *  the workspace's own file, which is the shape `localWorkspaceDeclarationAbolishedMessage` refuses
+ *  outright — "a workspace never declares itself or another workspace, in any file". Falls back to
+ *  the bare name when the sovereign dir selector is unset, because advice must not throw. */
+function nodeCatalogPath(baseDir: string): string {
+	try {
+		return path.join(baseDir, sovereignDir(), CONFIG_FILE_NAME);
+	} catch {
+		return path.join(baseDir, CONFIG_FILE_NAME);
+	}
+}
+
 function buildWorkspaceSourceDeclarationPlan(
 	plan: ReturnType<typeof buildWorkspaceSourceCachePlan>,
+	baseDir: string,
 ): {
 	mode: "all";
 	configPath: string;
@@ -476,15 +678,22 @@ function buildWorkspaceSourceDeclarationPlan(
 		}));
 	return {
 		mode: "all",
-		configPath: ".refarm/config.json",
+		// ISS-034: the NODE's catalog, absolute. This said `.refarm/config.json` — a relative path,
+		// which reads as the workspace's own file, and that is the shape
+		// `localWorkspaceDeclarationAbolishedMessage` refuses in the same breath: "a workspace never
+		// declares itself or another workspace, IN ANY FILE — only a node does, in its own catalog."
+		// The advice and the refusal contradicted each other, and the advice was the one an operator
+		// would follow, because it arrives when he is looking for something to do.
+		configPath: nodeCatalogPath(baseDir),
 		declarationCount: declarations.length,
 		declarations,
 		instructions:
 			declarations.length > 0
 				? [
-						"Fill each repository.url with the canonical Git remote for that workspace.",
+						"Declare each repository through `refarm workspace add <path> --repository <git-url> --replace`, which writes the node's catalog through a reviewed proposal.",
+						"Editing the node catalog by hand also works; the snippet above is that entry's shape. Do NOT put it in the workspace's own .refarm/config.json — a workspace never declares itself.",
 						"Keep ref null unless this workspace should materialize a specific branch or tag.",
-						"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
+						"Run `refarm workspace sources materialize --dry-run --json` after declaring repositories.",
 					]
 				: [],
 	};
@@ -494,11 +703,11 @@ function printWorkspaceSourceDeclarations(
 	options: WorkspaceSourceDeclarationsCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), {
 		baseDir,
 	});
-	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan);
+	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan, baseDir);
 	if (options.json) {
 		printJson(
 			buildJsonSuccessEnvelope({
@@ -554,11 +763,14 @@ function printWorkspaceSourceMaterialize(
 					nextCommand: WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
 				}),
 			);
+			// An ok:false envelope with exit 0 is a lie to the shell: `refarm … --json &&`
+			// reads this refusal as success. Envelope and exit code must agree.
+			process.exitCode = 1;
 			return;
 		}
 		throw new Error("workspace sources materialize currently requires --dry-run or --run");
 	}
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	const processes = plan.items.flatMap((item) => (item.process ? [item.process] : []));
 	const steps = workspaceSourceProcessSteps(processes, {
@@ -677,11 +889,13 @@ function printWorkspaceSourceRefresh(
 					nextCommand: WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND,
 				}),
 			);
+			// Same contract as materialize above: an ok:false envelope must not exit 0.
+			process.exitCode = 1;
 			return;
 		}
 		throw new Error("workspace sources refresh currently requires --dry-run or --run");
 	}
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	const processes = plan.items.flatMap((item) =>
 		item.refreshProcess ? [item.refreshProcess] : [],
@@ -768,12 +982,305 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace sources materialize --dry-run --json",
 				"  $ refarm workspace sources refresh --dry-run --json",
 				"  $ refarm workspace list --json",
+				"  $ refarm workspace sync my-app --json",
+				"  $ refarm workspace sync my-app",
 				"",
 				"Notes:",
 				"  Refarm detects execution adapters such as Turbo, then reports local and remote cache readiness.",
 				"  Use this when bringing Refarm into another project as a daily-driver CLI.",
 			].join("\n"),
 		);
+
+	command
+		.command("add [path]")
+		.description("Declare a workspace through a reviewed, authorised proposal")
+		.option("--id <id>", "Stable name used by workspace commands")
+		.option("--kind <kind>", "refarm | consumer | lab | vault | project")
+		.option("--repository <url>", "Portable repository URL; otherwise derive origin when present")
+		.option("--replace", "Re-open an existing declaration or prior decision")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.action(async (workspacePath: string | undefined, options: WorkspaceAddOptions) => {
+			try {
+				const result = await runWorkspaceAdd({ ...options, path: workspacePath });
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "workspace",
+							operation: "add",
+							extra: result,
+							nextCommands:
+								result.status === "declared"
+									? [refarmCommand(["workspace", "status", "--json"])]
+									: [],
+						}),
+					);
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  declared "${result.workspace}"`));
+					console.log(chalk.dim(`   ${result.configPath}`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+					console.log(chalk.dim(`   inspect: ${refarmCommand(["workspace", "status", "--json"])}`));
+				} else {
+					console.log(chalk.dim(`workspace ${result.status}`));
+				}
+			} catch (error) {
+				if (error instanceof WorkspaceAddRefusal && options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "workspace",
+							operation: "add",
+							error: error.code,
+							message: error.message,
+							nextAction: `Run \`${WORKSPACE_ADD_COMMAND}\` from an attended surface.`,
+							nextCommand: WORKSPACE_ADD_COMMAND,
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace(
+					"add",
+					options,
+					error,
+				);
+			}
+		});
+
+	command
+		.command("sync <id>")
+		.description("Review a workspace's own offer and accept it into this node's catalog")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Print the sync plan as JSON — inspection only, never writes")
+		.option(
+			"--replace",
+			"Accept the workspace's current definition for commands this node adopted from it and the workspace has since revised (ISS-035)",
+		)
+		.action(async (id: string, options: Pick<WorkspaceSyncOptions, "attendedElsewhere" | "json" | "replace">) => {
+			try {
+				const result = await runWorkspaceSync({ workspace: id, ...options }, deps);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "workspace",
+							operation: "sync",
+							extra: {
+								workspace: result.workspace,
+								plan: result.plan,
+								configPath: result.configPath,
+								offerPath: result.offerPath,
+							},
+							nextAction:
+								result.plan.additions.length > 0
+									? `Run \`${refarmCommand(["workspace", "sync", id])}\` (without --json) to review and accept.`
+									: null,
+							nextCommands:
+								result.plan.additions.length > 0 ? [refarmCommand(["workspace", "sync", id])] : [],
+						}),
+					);
+					return;
+				}
+				switch (result.status) {
+					case "declared":
+						console.log(chalk.green(`✓  synced "${id}"`));
+						console.log(chalk.dim(`   ${result.configPath}`));
+						console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+						break;
+					case "nothing-to-sync":
+						console.log(chalk.dim(describeNothingToSync(result.plan)));
+						break;
+					case "declined":
+						console.log(chalk.dim("declined — nothing written"));
+						break;
+					case "deferred":
+						console.log(chalk.dim("deferred — nothing written"));
+						break;
+					case "cancelled":
+						console.log(chalk.dim("cancelled — nothing written"));
+						break;
+				}
+			} catch (error) {
+				if (error instanceof WorkspaceSyncRefusal && options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "workspace",
+							operation: "sync",
+							error: error.code,
+							message: error.message,
+							nextAction: `Run \`${refarmCommand(["workspace", "sync", "--help"])}\` for accepted options.`,
+							nextCommand: refarmCommand(["workspace", "sync", "--help"]),
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("sync", options, error);
+			}
+		});
+
+	const workspaceOperationCommand = command
+		.command("command")
+		.description("Author named, shell-free operations for declared workspaces");
+
+	workspaceOperationCommand
+		.command("add <workspace> <name> [argv...]")
+		.description("Declare an exact argv operation through reviewed consent")
+		.option("--cwd <path>", "Working directory relative to the workspace root")
+		.option("--description <text>", "Human description shown by operation surfaces")
+		.option("--remote", "Allow enrolled devices to start this named operation (default: local only)")
+		.option("--result <wire>", 'Structured result contract (supported: "operation-result.v1")')
+		.option("--replace", "Review and replace an existing operation")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Use `--` before argv when it contains flags, so Refarm preserves every token exactly:",
+				"  $ refarm workspace command add my-app test -- pnpm test --runInBand",
+			].join("\n"),
+		)
+		.action(async (workspace: string, name: string, argv: string[], options: { cwd?: string; description?: string; remote?: boolean; result?: string; replace?: boolean; local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
+			try {
+				const result = await runWorkspaceCommandAdd({ workspace, name, argv: argv ?? [], ...options });
+				if (options.json) {
+					printJson(buildJsonSuccessEnvelope({
+						command: "workspace",
+						operation: "command-add",
+						extra: result,
+						nextCommands: result.status === "declared" ? [refarmCommand(["workspace", "run", workspace, name])] : [],
+					}));
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  declared "${workspace}:${name}"`));
+					console.log(chalk.dim(`   ${result.configPath}`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+					console.log(chalk.dim(`   run:  ${refarmCommand(["workspace", "run", workspace, name])}`));
+				} else console.log(chalk.dim(`workspace command ${result.status}`));
+			} catch (error) {
+				if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+					printJson(buildJsonErrorEnvelope({
+						command: "workspace",
+						operation: "command-add",
+						error: error.code,
+						message: error.message,
+						nextAction: `Run \`${refarmCommand(["workspace", "command", "add", "--help"])}\` from an attended surface.`,
+						nextCommand: refarmCommand(["workspace", "command", "add", "--help"]),
+					}));
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("command-add", options, error);
+			}
+		});
+
+	const workspaceRemoteCommand = workspaceOperationCommand
+		.command("remote")
+		.description("Expose or recollect an existing operation without changing its argv");
+
+	for (const mode of ["enable", "disable"] as const) {
+		workspaceRemoteCommand
+			.command(`${mode} <workspace> <name>`)
+			.description(
+				mode === "enable"
+					? "Allow enrolled devices to start an existing named operation"
+					: "Return an existing named operation to local-only use",
+			)
+			.option("--local", "Refused — that shape is abolished; see `workspace sync`")
+			.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+			.option("--json", "Output the declaration result as JSON")
+			.action(
+				async (
+					workspace: string,
+					name: string,
+					options: { local?: boolean; attendedElsewhere?: boolean; json?: boolean },
+				) => {
+					try {
+						const result = await runWorkspaceCommandRemote({
+							workspace,
+							name,
+							remote: mode === "enable",
+							...options,
+						});
+						if (options.json) {
+							printJson(
+								buildJsonSuccessEnvelope({
+									command: "workspace",
+									operation: `command-remote-${mode}`,
+									extra: result,
+									nextCommands:
+										result.status === "declared"
+											? [refarmCommand(["auth", "remote", "--json"])]
+											: [],
+								}),
+							);
+							return;
+						}
+						if (result.status === "declared") {
+							console.log(
+								chalk.green(
+									`✓  "${workspace}:${name}" is ${mode === "enable" ? "remote" : "local-only"}`,
+								),
+							);
+							console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+						} else console.log(chalk.dim(`workspace command remote ${result.status}`));
+					} catch (error) {
+						if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+							printJson(
+								buildJsonErrorEnvelope({
+									command: "workspace",
+									operation: `command-remote-${mode}`,
+									error: error.code,
+									message: error.message,
+									nextAction: "Inspect the named operation, then retry from an attended surface.",
+								}),
+							);
+							process.exitCode = 1;
+							return;
+						}
+						failWorkspace(`command-remote-${mode}`, options, error);
+					}
+				},
+			);
+	}
+
+	workspaceOperationCommand
+		.command("remove <workspace> <name>")
+		.description("Remove a named operation through reviewed consent")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.action(async (workspace: string, name: string, options: { local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
+			try {
+				const result = await runWorkspaceCommandRemove({ workspace, name, ...options });
+				if (options.json) {
+					printJson(buildJsonSuccessEnvelope({ command: "workspace", operation: "command-remove", extra: result }));
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  removed "${workspace}:${name}"`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+				} else console.log(chalk.dim(`workspace command ${result.status}`));
+			} catch (error) {
+				if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+					printJson(buildJsonErrorEnvelope({
+						command: "workspace",
+						operation: "command-remove",
+						error: error.code,
+						message: error.message,
+						nextAction: `Run \`${refarmCommand(["workspace", "command", "--help"])}\` from an attended surface.`,
+						nextCommand: refarmCommand(["workspace", "command", "--help"]),
+					}));
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("command-remove", options, error);
+			}
+		});
 
 	command
 		.command("execution")
@@ -853,15 +1360,20 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--dry-run", "Print clone processes without executing them")
 		.option("--run", "Execute source cache materialization processes")
 		.option("--json", "Output machine-readable materialization dry-run")
-		.action((options: WorkspaceSourceMaterializeCommandOptions, materializeCommand: Command) => {
-			printWorkspaceSourceMaterialize(
-				{
-					...options,
-					json: options.json || materializeCommand.parent?.opts().json,
+		.action(
+			guardedWorkspace<WorkspaceSourceMaterializeCommandOptions>(
+				"source-materialize",
+				(options, materializeCommand) => {
+					printWorkspaceSourceMaterialize(
+						{
+							...options,
+							json: options.json || materializeCommand.parent?.opts().json,
+						},
+						deps,
+					);
 				},
-				deps,
-			);
-		});
+			),
+		);
 
 	sourcesCommand
 		.command("refresh")
@@ -869,15 +1381,20 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--dry-run", "Print fetch processes without executing them")
 		.option("--run", "Execute stale source cache refresh processes")
 		.option("--json", "Output machine-readable refresh dry-run")
-		.action((options: WorkspaceSourceRefreshCommandOptions, refreshCommand: Command) => {
-			printWorkspaceSourceRefresh(
-				{
-					...options,
-					json: options.json || refreshCommand.parent?.opts().json,
+		.action(
+			guardedWorkspace<WorkspaceSourceRefreshCommandOptions>(
+				"source-refresh",
+				(options, refreshCommand) => {
+					printWorkspaceSourceRefresh(
+						{
+							...options,
+							json: options.json || refreshCommand.parent?.opts().json,
+						},
+						deps,
+					);
 				},
-				deps,
-			);
-		});
+			),
+		);
 
 	sourcesCommand.action((options: WorkspaceSourcesCommandOptions) => {
 		printWorkspaceSources(options, deps);
@@ -888,7 +1405,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.description("List workspaces declared in Refarm config")
 		.option("--json", "Output machine-readable configured workspaces")
 		.action((options: WorkspaceListCommandOptions) => {
-			const baseDir = deps?.cwd?.() ?? process.cwd();
+			const baseDir = deps?.cwd?.() ?? declaredBase();
 			const workspaces = loadDeclaredWorkspaces(deps, baseDir);
 			if (options.json) {
 				printJson(
@@ -898,11 +1415,43 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 						extra: {
 							workspaces,
 						},
+						nextAction:
+							workspaces.length === 0
+								? "Declare a workspace through a reviewed host-local proposal."
+								: null,
+						nextCommands: workspaces.length === 0 ? [WORKSPACE_ADD_COMMAND] : [],
 					}),
 				);
 				return;
 			}
 			printDeclaredWorkspaces(workspaces);
+		});
+
+	command
+		.command("run <workspace> <command> [args...]")
+		.description("Run a NAMED command from a workspace's declared commands allowlist")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Runs only commands authored with `refarm workspace command add` (or declared directly) —",
+				"an operation catalog, not a shell. Refarm holds the command string + cwd; the logic",
+				"lives in the workspace. Authoring preserves argv exactly and asks for consent:",
+				"  $ refarm workspace command add my-app test -- pnpm test",
+				"  $ refarm workspace run my-app test",
+			].join("\n"),
+		)
+		.action(async (workspace: string, cmd: string, args: string[]) => {
+			try {
+				const result = await runDeclaredWorkspaceCommand(
+					{ workspace, command: cmd, extraArgs: args ?? [] },
+					deps,
+				);
+				process.exitCode = result.exitCode;
+			} catch (error) {
+				console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+				process.exitCode = 1;
+			}
 		});
 
 	return command;

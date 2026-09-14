@@ -16,7 +16,7 @@ const STATUS: RefarmMePersonalStatus = {
 	pluginRegistryCount: 2,
 	discoveredContentPluginCount: 1,
 	referenceDriverCapabilityIds: ["records:v1"],
-	scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+	scheduledWorkSummary: { total: 1, due: 0, declared: 1, unsupported: 0 },
 };
 
 const INPUT = { args: {}, options: {}, json: false };
@@ -42,7 +42,7 @@ describe("createRefarmMePersonalCapabilities", () => {
 			pluginRegistryCount: 2,
 			discoveredContentPluginCount: 1,
 			referenceDriverCapabilityCount: 1,
-			scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+			scheduledWorkSummary: { total: 1, due: 0, declared: 1, unsupported: 0 },
 		});
 	});
 

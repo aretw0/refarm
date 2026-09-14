@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
 /**
@@ -27,7 +26,9 @@ export type LedgerScope = "org" | "workspace" | "user";
 export interface ScopeResolutionOptions {
 	/** Workspace root (defaults to process.cwd()). Injected for testability. */
 	workspaceRoot?: string;
-	/** User home (defaults to os.homedir()). Injected for testability. */
+	/** The base the `user` tier resolves under. REQUIRED (ISS-050): there is no filesystem
+	 *  default, because the one that existed silently answered the OS home for every caller that
+	 *  forgot it. Pass the node's declared base, or `os.homedir()` if the OS home is genuinely meant. */
 	userHome?: string;
 	/**
 	 * Org root — the shared/remote base. REQUIRED to resolve the `org` scope; it
@@ -57,15 +58,33 @@ class MissingOrgRootError extends Error {
 	}
 }
 
+/** Thrown when the user tier is resolved with no home — symmetric with {@link MissingOrgRootError}
+ * in the same function, and added for the same reason (ISS-050). The tier used to read
+ * `options.userHome ?? homedir()`, so every consumer that did not pass a home silently landed on the
+ * OS home: confirmed on disk, a plugin install wrote the working tree's `agent.wasm` into the
+ * OPERATOR's real `~/.refarm/assets/` while a sandbox home was declared. A caller that genuinely
+ * wants the OS home now says so — the fix is removing the default, not removing the concept. */
+class MissingUserHomeError extends Error {
+	constructor() {
+		super(
+			"The `user` ledger scope has no filesystem default — pass `userHome` (the declared base, " +
+				"or os.homedir() if the caller genuinely means the OS home).",
+		);
+		this.name = "MissingUserHomeError";
+	}
+}
+
 function scopeRoot(scope: LedgerScope, options: ScopeResolutionOptions): string {
 	const ledgerDir = options.ledgerDir ?? DEFAULT_LEDGER_DIR;
 	if (scope === "user") {
-		return join(options.userHome ?? homedir(), ledgerDir);
+		if (options.userHome === undefined) throw new MissingUserHomeError();
+		return join(options.userHome, ledgerDir);
 	}
 	if (scope === "org") {
 		if (options.orgRoot === undefined) throw new MissingOrgRootError();
 		return join(resolve(options.orgRoot), ledgerDir);
 	}
+	// os-resolution: project — this IS the definition of the workspace tier root, which the tier model anchors on the operator directory
 	return join(resolve(options.workspaceRoot ?? process.cwd()), ledgerDir);
 }
 

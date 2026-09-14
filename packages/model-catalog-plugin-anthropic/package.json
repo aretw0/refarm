@@ -1,0 +1,33 @@
+{
+  "name": "@refarm.dev/model-catalog-plugin-anthropic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Anthropic model rate plugin for model-catalog-v1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "eslint src",
+    "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run src/index.test.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@refarm.dev/model-catalog-v1": "workspace:*"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
+  }
+}

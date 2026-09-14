@@ -18,9 +18,9 @@
 
 ---
 
-## Layer 1 — Apps → Runtime → Plugin Sandbox
+## Layer 1 — Apps → Execution Kernel → Plugin Sandbox
 
-How distros connect to the dual-runtime Tractor core and reach the plugin sandbox.
+How distros connect to the execution kernel and reach the plugin sandbox.
 
 <!-- {=arch-apps-runtime} -->
 **Source**: [`architecture-layers--apps-runtime.mermaid`](./architecture-layers--apps-runtime.mermaid)
@@ -28,9 +28,9 @@ How distros connect to the dual-runtime Tractor core and reach the plugin sandbo
 ![Apps and runtime layer](./architecture-layers--apps-runtime.svg)
 
 > The execution path from distros to the plugin sandbox.
-> All 4 apps route through the dual-runtime Tractor core, which exposes a single WIT contract
-> (`plugin:host@0.1.0`) shared by both `tractor-ts` (JCO) and `tractor` (wasmtime).
-> Plugins run in an isolated `.wasm` sandbox on either runtime.
+> Product apps compose runtime surfaces according to their environment. `tractor` is the
+> Rust-native execution authority; `tractor-ts` supplies browser compatibility and conformance.
+> Both conform to the canonical WIT contract (`plugin:host@0.1.0`).
 <!-- {/arch-apps-runtime} -->
 
 | Distro | Runtime | Purpose |
@@ -39,6 +39,7 @@ How distros connect to the dual-runtime Tractor core and reach the plugin sandbo
 | `apps/me` | Astro / Browser | Homestead · sovereign identity (refarm.me) |
 | `apps/farmhand` | Node.js daemon | Task execution · model routing |
 | `apps/refarm` | CLI entry | Runtime bootstrap · `refarm` command |
+| `apps/site` | Astro | Project documentation |
 
 WIT exports: `setup · ingest · push · respond · on-event`
 WIT imports (agent only): `model-bridge · agent-fs · agent-shell`

@@ -1,5 +1,5 @@
 import { createSidecarGraphClient, type SidecarGraphClient } from "@refarm.dev/sidecar-client";
-import { createNodeView } from "@refarm.dev/storage-node-view";
+import { createNodeView, type NodeView } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "./refarm-home.js";
@@ -74,10 +74,34 @@ export async function openDirectTractorGraph(env = process.env): Promise<Tractor
 	if (!fs.existsSync(dbPath)) return null;
 	try {
 		const { TractorNodesReadProvider } = await import("@refarm.dev/storage-sqlite/node");
-		return createNodeView(new TractorNodesReadProvider(dbPath));
+		return tractorGraphFromNodeView(createNodeView(new TractorNodesReadProvider(dbPath)));
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Adapt a `NodeView` (a plain fs/sqlite record scan, no server-side paging —
+ * `packages/storage-node-view/src/node-view.ts`) to the sidecar client's
+ * `SidecarGraphClient` shape. Unlike the HTTP sidecar's `GET /nodes`, this
+ * path has no response ceiling and no partial page: `NodeView.queryNodes`
+ * always reads every stored row of the requested `@type` in one pass. So
+ * `stored`/`truncated` ARE knowable here, unlike the sidecar's unknown-gap
+ * case — every row was read, none was left out. `stored: nodes.length` and
+ * `truncated: false` are correct BY CONSTRUCTION for this backend, not a
+ * default standing in for an unknown answer (contrast
+ * `docs/SOVEREIGN_RECORD_ORDERING.md`'s "absent means absent" — that rule
+ * governs the sidecar HTTP path, where completeness genuinely cannot be
+ * seen from the client).
+ */
+function tractorGraphFromNodeView(view: NodeView): TractorGraph {
+	return {
+		getNode: (id) => view.getNode(id),
+		async queryNodes(type) {
+			const nodes = await view.queryNodes(type);
+			return { nodes, stored: nodes.length, truncated: false };
+		},
+	};
 }
 
 function directSqliteGraphEnabled(env: NodeJS.ProcessEnv): boolean {

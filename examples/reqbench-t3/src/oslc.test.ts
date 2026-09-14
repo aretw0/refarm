@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CrawledPage } from "@refarm.dev/source-web";
 
+import { readProvenance } from "@refarm.dev/provenance-contract-v1";
+
 import { loginUrlForTarget } from "./persona.js";
 import {
 	createOslcCrawlExtractor,
@@ -97,6 +99,11 @@ describe("parseRequirementsFromRdf", () => {
 		// the Jazz artifact URI is preserved on the record.
 		expect(rn?.fields.artifactUri).toBe("https://alm.example/rm/resources/TX_10");
 		expect(rn?.sourceRefs).toEqual(["web:efd"]);
+		// license/privacy are stamped on every OSLC pull too, not just the HTML-pull path
+		// (provenance-contract-v1 lane, entry 8) — no longer silently absent from an RDF ingest.
+		const rnProvenance = readProvenance(rn?.fields);
+		expect(rnProvenance?.license).toBe("unknown");
+		expect(rnProvenance?.privacy).toBe("internal");
 
 		const cdu = records.find((r) => r.fields.externalKey === "CDU-282405");
 		expect(cdu?.fields.tipo).toBe("caso-de-uso");

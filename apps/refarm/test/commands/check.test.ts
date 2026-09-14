@@ -1,5 +1,6 @@
 import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { printRefarmCheckNextActionJson } from "../../src/commands/check-report.js";
 import {
 	buildNodeSubstrateRecommendations,
 	buildRefarmCheckReport,
@@ -29,6 +30,7 @@ function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 		},
 		resolution: [],
 		recommendations: [],
+		skippedAuditors: [],
 		nextAction: null,
 		nextActions: [],
 		nextCommand: null,
@@ -59,8 +61,9 @@ function makeDoctorReport(
 			command: "refarm",
 			profile: "dev",
 			version: "0.1.0",
-			packageManager: "pnpm",
 		},
+		// ISS-093: the package manager is a fact about the tree the CLI ran in, not about the host.
+		workingTree: { path: "/repo", packageManager: "pnpm" },
 		status: {
 			schemaVersion: 1,
 			host: {
@@ -104,11 +107,18 @@ function makeModelDoctorStatus(
 	overrides: Partial<ModelDoctorStatus> = {},
 ): ModelDoctorStatus {
 	return {
+		// No base URL is configured in the default fixture, which is its own state — see
+		// CurrentModelStatus.baseUrlSource. Naming it here keeps the fixture from asserting one.
+		baseUrlSource: undefined,
 		current: {
 			provider: "openai",
 			modelId: "gpt-5.5",
 			ref: "openai/gpt-5.5",
 		},
+		// ISS-081: the credential's own clock. `unknown` here rather than a value, because this
+		// fixture is about the PROBE and a doctor status that claimed a valid credential it never
+		// read would be the fixture asserting something it does not know.
+		credential: { state: "unknown", reason: "not-oauth" },
 		providerProbe: {
 			provider: "openai",
 			baseUrl: undefined,
@@ -126,6 +136,8 @@ function makeModelDoctorStatus(
 			inspectCurrent: "refarm model current --json",
 			startOllama: "ollama serve",
 			setDockerOllamaBaseUrl: "refarm model base-url http://host.docker.internal:11434 --json",
+			clearPersistedBaseUrl: "refarm model base-url off --json",
+			unsetBaseUrlEnv: "unset MODEL_BASE_URL",
 		},
 		...overrides,
 	};
@@ -1119,6 +1131,7 @@ describe("checkCommand", () => {
 			nextCommand: null,
 			nextCommands: [],
 			recommendations: [],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBeUndefined();
 
@@ -1149,6 +1162,7 @@ describe("checkCommand", () => {
 			nextCommand: null,
 			nextCommands: [],
 			recommendations: [],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBeUndefined();
 
@@ -1384,6 +1398,7 @@ describe("checkCommand", () => {
 					target: "packages/example",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1436,6 +1451,7 @@ describe("checkCommand", () => {
 					target: "node_modules/.bin/vitest -> node_modules/.bin/vitest.cmd",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1551,6 +1567,7 @@ describe("checkCommand", () => {
 					command: "refarm runtime start --wait",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1572,5 +1589,86 @@ describe("checkCommand", () => {
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: true });
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
+	});
+
+	it("promotes doctor warnings to next-action guidance when fail-on-warnings is enabled", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 0,
+				warningCount: 1,
+				warnings: ["context:home-divergence"],
+				recommendations: [
+					{
+						diagnostic: "context:home-divergence",
+						severity: "warning",
+						summary: "REFARM_HOME and SILO_HOME resolve to different homes.",
+						action: "Align SILO_HOME and REFARM_HOME, then re-check.",
+						command: "refarm model current --json",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action", "--fail-on-warnings"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Align SILO_HOME and REFARM_HOME, then re-check.",
+			nextActions: ["Align SILO_HOME and REFARM_HOME, then re-check."],
+			nextCommand: "refarm model current --json",
+			nextCommands: ["refarm model current --json"],
+			recommendations: [
+				{
+					diagnostic: "context:home-divergence",
+					severity: "warning",
+					summary: "REFARM_HOME and SILO_HOME resolve to different homes.",
+					action: "Align SILO_HOME and REFARM_HOME, then re-check.",
+					command: "refarm model current --json",
+				},
+			],
+			skippedAuditors: [],
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+});
+
+// ISS-083. `refarm check --next-action --json` returned ok:true on a node where `refarm health`
+// reported config_node_drift minutes apart, on the same tree. The divergence was real and standing;
+// what changed was whether the mandated entry point LOOKED. Two states where three are needed:
+// "audited and clean" and "not audited" both produced ok:true, and the third — "this auditor did
+// not run for this change set" — appeared nowhere in the envelope.
+describe("check says what it audited, not only its verdict (ISS-083)", () => {
+	function payloadFor(skippedAuditors: { id: string; title: string; reason: string }[]) {
+		const report = buildRefarmCheckReport(
+			{
+				health: makeHealthReport({ ok: true, issueCount: 0, recommendations: [], skippedAuditors }),
+				doctor: makeDoctorReport(),
+			},
+			{},
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		try {
+			printRefarmCheckNextActionJson(report);
+			return JSON.parse(logs.join("\n"));
+		} finally {
+			spy.mockRestore();
+		}
+	}
+
+	it("carries the skipped auditors into the next-action envelope", () => {
+		const skipped = [{ id: "configNode", title: "Config node", reason: "not applicable" }];
+		expect(payloadFor(skipped).skippedAuditors).toEqual(skipped);
+	});
+
+	it("carries an EMPTY list when nothing was skipped — the fact that makes ok:true mean what a reader assumes", () => {
+		expect(payloadFor([]).skippedAuditors).toEqual([]);
 	});
 });

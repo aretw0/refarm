@@ -1,10 +1,18 @@
 /**
  * Where does this hub's browser runtime SYNC to? (multi-device seam)
  *
- * The daemon's CRDT WebSocket already listens on 0.0.0.0:42000 — any device on
- * the network can sync. What was missing is the pointer: the hub always dialed
- * `ws://localhost:42000`, i.e. the DEVICE itself, so a phone opening the hub
- * synced against nothing. Resolution order:
+ * The hub always dialed `ws://localhost:42000`, i.e. the DEVICE running the
+ * browser, so a phone opening the hub synced against nothing. This resolves the
+ * pointer instead.
+ *
+ * NOTE ON REACHABILITY (this used to claim the daemon "already listens on
+ * 0.0.0.0:42000 — any device on the network can sync"; it does not, and should
+ * not have): the daemon's CRDT WebSocket binds LOOPBACK and refuses any wider
+ * bind, because that socket has no credential gate — anyone who reaches it can
+ * read and write the whole document and dispatch `user:prompt`. So a derived
+ * `ws://<hostname>:42000` only connects when something authenticated fronts it —
+ * in practice `refarm web serve`, whose `/sync` upgrade proxies to the daemon's
+ * loopback socket. Resolution order:
  *   1. explicit `REFARM_ME_SYNC_WS_URL` env, injected at build/dev time;
  *   2. derived from the page's own host — when another device opens the hub,
  *      `location.hostname` IS the serving host, so `ws://<hostname>:42000`

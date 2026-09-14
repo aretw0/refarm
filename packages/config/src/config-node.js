@@ -230,6 +230,8 @@ export function configFromNode(node) {
  * false drift. Returns null when the file is absent or invalid JSON (mirrors the
  * host's early-return). CONFORMANCE: keep in lockstep with refarm_config_json_from.
  */
+// os-resolution: project — reads ONE tier's config file, and with no root the tier is `workspace`,
+// which storage-fs/src/scope.ts anchors on the operator's directory by design (org < workspace < user)
 export function loadRawSovereignConfig(root = process.cwd(), env = process.env) {
 	const filePath = path.join(root, sovereignConfigRelativePath(env));
 	let raw;

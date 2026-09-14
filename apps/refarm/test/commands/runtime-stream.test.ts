@@ -5,9 +5,44 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	readEffortAndSessionFallback,
 	readEffortResultFile,
+	reconcileStreamMetadata,
 } from "../../src/commands/runtime-stream.js";
 
 describe("runtime-stream", () => {
+	it("replaces zero stream placeholders with the terminal effort usage", async () => {
+		const metadata = await reconcileStreamMetadata(
+			"eff-1",
+			{ model: "gpt-5.5", tokens_in: 0, tokens_out: 0 },
+			vi.fn().mockResolvedValue({
+				status: "ok",
+				content: "answer",
+				metadata: {
+					model: "gpt-5.5",
+					tokens_in: 1400,
+					tokens_out: 12,
+					tokens_cached: 900,
+					pricing_mode: "subscription",
+				},
+			}),
+		);
+
+		expect(metadata).toMatchObject({
+			tokens_in: 1400,
+			tokens_out: 12,
+			tokens_cached: 900,
+			pricing_mode: "subscription",
+		});
+	});
+
+	it("does not query the effort result when the stream already carries metering", async () => {
+		const readEffortResult = vi.fn();
+		const streamMetadata = { model: "mock", tokens_in: 3, tokens_out: 2 };
+		expect(await reconcileStreamMetadata("eff-1", streamMetadata, readEffortResult)).toBe(
+			streamMetadata,
+		);
+		expect(readEffortResult).not.toHaveBeenCalled();
+	});
+
 	it("prefers effort fallback when available", async () => {
 		const effortResult = {
 			status: "ok",
@@ -178,5 +213,40 @@ describe("readEffortResultFile: effort state machine terminality", () => {
 		const result = await readEffortResultFile(resultsDir, "eff-done");
 		expect(result?.status).toBe("ok");
 		expect(result?.content).toBe("hi");
+	});
+
+	it("projects the complete normalized usage block from a terminal respond result", async () => {
+		write("eff-usage", {
+			status: "done",
+			results: [
+				{
+					status: "ok",
+					result: {
+						content: "hi",
+						model: "gpt-5.5",
+						provider: "openai-codex",
+						usage: {
+							tokens_in: 1400,
+							tokens_out: 12,
+							tokens_cached: 900,
+							tokens_reasoning: 7,
+							pricing_mode: "subscription",
+							estimated_usd: 0,
+						},
+					},
+				},
+			],
+		});
+
+		expect((await readEffortResultFile(resultsDir, "eff-usage"))?.metadata).toEqual({
+			model: "gpt-5.5",
+			provider: "openai-codex",
+			tokens_in: 1400,
+			tokens_out: 12,
+			tokens_cached: 900,
+			tokens_reasoning: 7,
+			pricing_mode: "subscription",
+			estimated_usd: 0,
+		});
 	});
 });

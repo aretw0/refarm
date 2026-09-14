@@ -100,6 +100,8 @@ describe("ToolchainAuditor", () => {
 				required: true,
 				command: "node --version",
 				version: "v24.0.0",
+				state: "ok",
+				measuredVersion: "24.0.0",
 				stderr: undefined,
 			},
 			{
@@ -109,6 +111,8 @@ describe("ToolchainAuditor", () => {
 				required: true,
 				command: "uv --version",
 				version: undefined,
+				state: "absent",
+				detail: "`uv` is declared by this node and did not run.",
 				stderr: "uv missing",
 			},
 			{
@@ -118,9 +122,44 @@ describe("ToolchainAuditor", () => {
 				required: true,
 				command: "python --version",
 				version: "Python 3.13.0",
+				state: "ok",
+				measuredVersion: "3.13.0",
 				stderr: undefined,
 			},
 		]);
+	});
+
+	it("FAILS a tool that runs but is older than the declared minimum", async () => {
+		// The case this was extended for, measured on a real node: `gh` 2.4.0 from 2022 exits 0 for
+		// `--version`, so every presence check passes and the node reports a healthy toolchain right
+		// up to the first command that version does not have.
+		const auditor = new ToolchainAuditor({
+			commandChecks: [{ id: "gh", command: "gh", minVersion: "2.40.0", why: "CI handoffs" }],
+			spawnSync: fakeSpawn({ "gh --version": { status: 0, stdout: "gh version 2.4.0 (2022-03-30)" } }),
+		});
+
+		const report = await auditor.audit({ rootDir });
+		expect(report.ok).toBe(false);
+		expect(report.missing).toEqual(["gh"]);
+		const [check] = report.checks;
+		expect(check.state).toBe("outdated");
+		expect(check.measuredVersion).toBe("2.4.0");
+		expect(check.detail).toContain("2.40.0");
+		expect(check.detail).toContain("CI handoffs");
+	});
+
+	it("does not call a tool satisfied when its version could not be read", async () => {
+		// `cannot-say` is not `ok`. A banner this build cannot parse leaves the declared minimum
+		// UNVERIFIED, and reporting it as met is reporting success on a claim nothing measured.
+		const auditor = new ToolchainAuditor({
+			commandChecks: [{ id: "vpn", command: "ovpnctl", minVersion: "1.0.0" }],
+			spawnSync: fakeSpawn({ "ovpnctl --version": { status: 0, stdout: "ovpnctl (build unknown)" } }),
+		});
+
+		const report = await auditor.audit({ rootDir });
+		expect(report.checks[0].state).toBe("cannot-say");
+		expect(report.checks[0].ok).toBe(false);
+		expect(report.checks[0].detail).toMatch(/UNVERIFIED/u);
 	});
 
 	it("checks the devcontainer node_modules volume mount when declared", async () => {

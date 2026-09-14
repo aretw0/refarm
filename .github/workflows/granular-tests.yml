@@ -38,6 +38,9 @@ jobs:
       matrix: ${{ steps.matrix-cache-hit.outputs.matrix || steps.build-matrix.outputs.matrix }}
       matrix_key: ${{ steps.signature.outputs.matrix_key }}
       cache_hit: ${{ steps.matrix-cache.outputs.cache-hit }}
+      # "true" when the builder emitted an empty matrix because the real one exceeded GitHub's
+      # 256-job limit (see scripts/ci/github-matrix-builder.mjs) — nothing was validated then.
+      matrix_overflow: ${{ steps.build-matrix.outputs.matrix_overflow }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -149,7 +152,7 @@ jobs:
     name: Matrix Cache Finalize
     needs: [matrix-setup, matrix-runner]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.matrix-setup.outputs.matrix_key != '' && needs.matrix-setup.outputs.cache_hit != 'true' && (needs.matrix-runner.result == 'success' || needs.matrix-runner.result == 'skipped') }}
+    if: ${{ always() && needs.matrix-setup.outputs.matrix_key != '' && needs.matrix-setup.outputs.cache_hit != 'true' && needs.matrix-setup.outputs.matrix_overflow != 'true' && (needs.matrix-runner.result == 'success' || needs.matrix-runner.result == 'skipped') }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -4,6 +4,9 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
 import { startRuntimeProcess, type RuntimeLaunchCommand } from "./runtime-launcher.js";
+import { runRuntimeForeground } from "./runtime-foreground.js";
+import { readRuntimeSupervision, type RuntimeSupervision } from "./runtime-supervision.js";
+import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeLiveness,
 	waitForRuntimeReady,
@@ -53,6 +56,9 @@ export interface RuntimeCommandDeps {
 	resolveRuntime(repoRoot: string, configuredEngine: TractorEngineMode): LaunchRuntimeSelection;
 	startRuntime?(command: RuntimeLaunchCommand): void;
 	stopRuntime?(repoRoot: string): RuntimeStopResult;
+	/** Injected by tests. Answers whether a supervisor owns this node's daemon, so `stop` and
+	 *  `restart` hand over the systemctl line instead of signalling behind its back. */
+	readSupervision?(): Promise<RuntimeSupervision>;
 	probeReadiness?(): Promise<RuntimeReadinessProbe>;
 	probeReady?(): Promise<boolean>;
 	waitUntilReady?(): Promise<boolean>;
@@ -70,6 +76,46 @@ export function defaultRuntimeCommandDeps(): RuntimeCommandDeps {
 		probeReadiness: () => probeRuntimeLiveness(),
 		waitUntilReady: waitForRuntimeReady,
 	};
+}
+
+/**
+ * The refusal a supervised daemon earns, and the line that actually does the job.
+ *
+ * NOT a redirect and not a silent no-op: sending SIGTERM by pid under `Restart=always` reads
+ * to the supervisor as a crash and the daemon returns in five seconds, so the operator's
+ * intent would be defeated without a word. refarm does not run systemctl on their behalf
+ * (see the boundary in process.ts), so it hands over the line that does — and puts it in
+ * `nextCommand`, because a handoff that names the fix only in prose is one an agent cannot
+ * follow.
+ */
+function printSupervisedRefusal(
+	supervision: RuntimeSupervision,
+	command: string,
+	operation: "stop" | "restart",
+	json: boolean,
+): void {
+	if (json) {
+		printJson({
+			command: "runtime",
+			operation,
+			ok: false,
+			error: "runtime-supervised",
+			supervised: true,
+			unit: supervision.unit,
+			message: `The runtime is supervised by ${supervision.unit}. Ask the supervisor, not the process.`,
+			nextAction: command,
+			nextActions: [command],
+			nextCommand: command,
+			nextCommands: [command],
+		});
+		return;
+	}
+	console.error(chalk.red(`✗  The runtime is supervised by ${supervision.unit}.`));
+	console.error(
+		chalk.dim("   Signalling the process directly reads as a crash, and the supervisor"),
+	);
+	console.error(chalk.dim("   would bring it back in seconds. Ask the supervisor instead:"));
+	console.error(chalk.dim(`   ${command}`));
 }
 
 export function createRuntimeCommand(
@@ -150,8 +196,14 @@ Notes:
   This stops the local runtime process tracked by the selected workspace.
 `,
 				)
-				.action((opts: { json?: boolean }, subcommand: Command) => {
+				.action(async (opts: { json?: boolean }, subcommand: Command) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const supervision = await (deps.readSupervision ?? readRuntimeSupervision)();
+					if (supervision.supervised) {
+						printSupervisedRefusal(supervision, supervision.stopCommand, "stop", Boolean(json));
+						process.exitCode = 1;
+						return;
+					}
 					const result = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
 					if (json) {
 						printJson(buildRuntimeStopJsonPayload(result));
@@ -190,6 +242,17 @@ Notes:
 				)
 				.action(async (opts: { wait?: boolean; json?: boolean }, subcommand: Command) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const supervision = await (deps.readSupervision ?? readRuntimeSupervision)();
+					if (supervision.supervised) {
+						printSupervisedRefusal(
+							supervision,
+							supervision.restartCommand,
+							"restart",
+							Boolean(json),
+						);
+						process.exitCode = 1;
+						return;
+					}
 					const stop = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
 					if (!stop.ok) {
 						if (json) {
@@ -232,7 +295,7 @@ Notes:
 						return;
 					}
 
-					(deps.startRuntime ?? startRuntimeProcess)(command);
+					(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 					const ready = opts.wait
 						? await (deps.waitUntilReady ?? waitForRuntimeReady)()
 						: undefined;
@@ -364,7 +427,7 @@ Notes:
 							return;
 						}
 
-						(deps.startRuntime ?? startRuntimeProcess)(command);
+						(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 						if (opts.wait) {
 							const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 							const diagnostics = ready ? undefined : runtimeStartDiagnostics(command);
@@ -462,6 +525,10 @@ Notes:
 			new Command("start")
 				.description("Start the selected Refarm runtime in the background")
 				.option("--dry-run", "Print the resolved start command without executing it")
+				.option(
+					"--foreground",
+					"Run the runtime in THIS process instead of detaching — what a supervisor's ExecStart uses",
+				)
 				.option("--wait", "Wait until the local runtime sidecar responds")
 				.option("--json", "Output machine-readable JSON")
 				.addHelpText(
@@ -473,15 +540,19 @@ Examples:
   $ ${RUNTIME_START_WAIT_COMMAND}
   $ refarm runtime start --dry-run
   $ ${TRACTOR_ENGINE_ENV_VAR}=rust refarm runtime start
+  $ refarm runtime start --foreground
 
 Notes:
   This uses the same engine selection as refarm ask/session autostart.
+  --foreground runs the runtime in THIS process: it is what a supervisor unit's
+  ExecStart points at, so the unit stores the CALL and the plugin list and the
+  node environment are derived at every start rather than frozen into the file.
   tractor.engine=auto prefers Rust Tractor when its local binary is available.
 `,
 				)
 				.action(
 					async (
-						opts: { dryRun?: boolean; wait?: boolean; json?: boolean },
+						opts: { dryRun?: boolean; wait?: boolean; json?: boolean; foreground?: boolean },
 						subcommand: Command,
 					) => {
 						const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
@@ -514,7 +585,32 @@ Notes:
 							return;
 						}
 
-						(deps.startRuntime ?? startRuntimeProcess)(command);
+						if (opts.foreground) {
+							// THE FOREGROUND START IS THE DAEMON. There is no envelope to print at the end
+							// of it and nothing to wait for — this process becomes the node's life and its
+							// exit code is the node's. Refuse the combinations rather than print a payload
+							// nobody will read.
+							if (json || opts.wait) {
+								console.error(
+									chalk.red("✗  --foreground cannot be combined with --json or --wait."),
+								);
+								console.error(
+									chalk.dim("   The foreground start IS the daemon: it does not return a result."),
+								);
+								process.exitCode = 1;
+								return;
+							}
+							// `command.engine` and NOT `payload.activeEngine`: the launch command was already
+							// resolved from the same selection, and its engine is narrowed to one that can
+							// actually launch. Reading the payload again would be a second answer to a
+							// question that already has one — and TypeScript says so, because the payload
+							// still admits "unknown" here.
+							const result = await runRuntimeForeground(deps.repoRoot(), command.engine);
+							process.exitCode = result.exitCode;
+							return;
+						}
+
+						(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 						if (opts.wait) {
 							const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 							if (json) {

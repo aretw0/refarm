@@ -88,6 +88,7 @@ function commandSource(command: string): string | null {
 }
 
 export async function runRustSubstrateCheck(
+	// os-resolution: project — audits the Rust substrate of the repository being inspected
 	root = process.cwd(),
 	// The brand-specific "retry the check" handoff shown in recovery actions
 	// (ADR-087). Required from the caller; the generic package names no binary.

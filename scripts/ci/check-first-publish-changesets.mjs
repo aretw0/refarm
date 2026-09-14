@@ -37,7 +37,7 @@ export function parseChangesets(root = ROOT) {
 
 export function findFirstPublishChangesetRisks({
 	root = ROOT,
-	selectionId = "vault-seed-ready",
+	selectionId = "consumer-ready",
 	packageNames = [],
 } = {}) {
 	const check = buildReleaseCheckPlan({
@@ -85,7 +85,7 @@ export function readWorkspacePackageVersions(root = ROOT) {
 
 export function findOutOfSelectionBaselineRisks({
 	root = ROOT,
-	selectionId = "vault-seed-ready",
+	selectionId = "consumer-ready",
 	packageNames = [],
 } = {}) {
 	const check = buildReleaseCheckPlan({

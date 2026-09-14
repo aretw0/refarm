@@ -1,4 +1,4 @@
-pub(crate) const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-4-6";
+pub(crate) const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-5";
 
 pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) -> String {
     if explicit_model.is_empty() {
@@ -10,7 +10,14 @@ pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) ->
 
 pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static str) {
     match provider {
-        "openai" => ("https://api.openai.com", "gpt-5.5"),
+        "openai" => ("https://api.openai.com", "gpt-5.6-sol"),
+        // Still gpt-5.5, and deliberately so. This route does not talk to api.openai.com; it
+        // talks to the ChatGPT backend, whose model list is behind an account and cannot be
+        // read from any public page. gpt-5.6-sol is verified to exist on the API — that says
+        // nothing about what THIS endpoint serves, and swapping in an id this backend may not
+        // accept would break a working route to fix a suspected one. The API's own gpt-5.5 is
+        // gone (2026-08-04), so this id is probably stale here too; confirming it needs a live
+        // call from an account that has the entitlement, which is the operator's to make.
         "openai-codex" => ("https://chatgpt.com", "gpt-5.5"),
         "groq" => ("https://api.groq.com", "llama-3.3-70b-versatile"),
         "mistral" => ("https://api.mistral.ai", "mistral-medium-3-5"),
@@ -20,13 +27,48 @@ pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static 
             "https://api.together.xyz",
             "meta-llama/Llama-3.3-70B-Instruct-Turbo",
         ),
-        "openrouter" => ("https://openrouter.ai", "anthropic/claude-sonnet-4.6"),
+        "openrouter" => ("https://openrouter.ai", "anthropic/claude-sonnet-5"),
         "gemini" => (
             "https://generativelanguage.googleapis.com",
             "gemini-3-flash-preview",
         ),
+        // GitHub Copilot speaks the OpenAI chat shape, and its BASE URL IS PER-ACCOUNT: the token
+        // exchange announces where that seat talks (`api.business.` for a business seat,
+        // `api.individual.` for a personal one — measured on two real accounts 2026-08-17). The
+        // value here is only the last resort; the real endpoint arrives in MODEL_PROVIDER_BASE_URLS.
+        "github-copilot" => ("https://api.githubcopilot.com", "gpt-4o"),
         _ => ("http://localhost:11434", "llama3.2"),
     }
+}
+
+/// PURE. One provider's endpoint from a `MODEL_PROVIDER_BASE_URLS` value.
+///
+/// THE HOST PARSES THE SAME STRING WITH THE SAME RULE (`parse_provider_base_url` in the tractor
+/// bridge), and that lockstep is the point: the host validates every request against its own
+/// resolution of this map, so a guest that read it differently would build a request the host
+/// refuses. A pair either side cannot read is DROPPED rather than guessed, which leaves only two
+/// outcomes — both agree, or both fall back to the static default above.
+///
+/// Format: `provider=url` pairs joined by `,`, no whitespace, ASCII.
+pub(crate) fn provider_base_url_from(raw: &str, provider: &str) -> Option<String> {
+    let wanted = provider.trim().to_ascii_lowercase();
+    for pair in raw.split(',') {
+        let Some((name, url)) = pair.split_once('=') else {
+            continue;
+        };
+        if name.trim().to_ascii_lowercase() != wanted {
+            continue;
+        }
+        let url = url.trim();
+        if url.is_empty() || (!url.starts_with("http://") && !url.starts_with("https://")) {
+            return None;
+        }
+        if !url.is_ascii() || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return None;
+        }
+        return Some(url.to_string());
+    }
+    None
 }
 
 // ── ADR-012: capability map + routing profiles (agent-side) ──────────────────────
@@ -61,15 +103,15 @@ impl CostTier {
 }
 
 /// The declared capabilities of a `(provider, model)` route — the metadata a profile
-/// routes BY. Kept deliberately small: the axes the ADR named (tool-call, structured
-/// JSON, a cost tier, a rough context window). Extend here as routing needs grow.
+/// routes BY. Kept deliberately small: the axes the ADR named that a ROUTER actually
+/// decides on (tool-call, structured JSON, a cost tier). Per-model facts about the
+/// vendor's product — window sizes, prices — belong in the model catalog, where the
+/// schema makes them carry a source and a date; see `provider_capabilities` below.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ModelCapabilities {
     pub tool_call: bool,
     pub structured_json: bool,
     pub cost_tier: CostTier,
-    /// Rough max context window in tokens (0 = unknown/unbounded floor).
-    pub context_window: u32,
 }
 
 /// The capability map: what a provider's DEFAULT model is known to support. Keyed by
@@ -78,50 +120,67 @@ pub(crate) struct ModelCapabilities {
 /// fall to the conservative local floor (tool-call/JSON true so a local model is still
 /// usable as a route, but tagged `Local` so cost-ordered profiles rank it last... or
 /// first, for `cheap`). PURE.
+///
+/// `context_window` USED TO LIVE HERE and was removed on 2026-08-04. It is recorded rather than
+/// silently dropped, because the reason generalises to anything else that might be added here.
+///
+/// It had no vendor citation, and the reason it had none was structural, not sloppy: five
+/// providers with five different default models shared two match arms and two numbers, so the
+/// figures were assigned by COST TIER, never looked up per model. Checking them against the
+/// vendors confirmed it — Sonnet 4.6 is 1M, not the 200_000 recorded; grok-4.3 is 1M and
+/// deepseek-v4-flash is 1M, not 128_000; llama-3.3-70b-versatile is 131_072, not 128_000. Every
+/// verifiable figure was wrong, all in the same direction: the round numbers of an earlier era,
+/// frozen while the market moved.
+///
+/// Nothing ever read the field — `tool_call` and `structured_json` are read by
+/// `profile_requirement`, `cost_tier` by profile ordering, and `context_window` by nobody — which
+/// is exactly why it could rot undisturbed. A wrong number nobody reads is worse than no number:
+/// it is correct-looking until the day something reads it.
+///
+/// Its home is `packages/model-catalog-v1`, whose schema REQUIRES a source and a verification
+/// date per fact (`contextWindow: { tokens, sourceUrl, verifiedAt }`) and where the verified
+/// windows now live. Where a figure is missing, the catalog records WHY — `not-published` (the
+/// vendor's page was read and states none) or `source-not-found` (the page was never reached, so
+/// nothing is known about the vendor either way). Wiring this crate to read that catalog is real,
+/// unstarted work; until it happens, a routing decision that needs a context window must go and
+/// get it from there, not from a constant here.
 pub(crate) fn provider_capabilities(provider: &str) -> ModelCapabilities {
     match provider {
         "anthropic" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Premium,
-            context_window: 200_000,
         },
         "openai" | "openai-codex" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Premium,
-            context_window: 128_000,
         },
         "openrouter" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Mid,
-            context_window: 200_000,
         },
         "mistral" | "xai" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Mid,
-            context_window: 128_000,
         },
         "groq" | "deepseek" | "together" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Cheap,
-            context_window: 128_000,
         },
         "gemini" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Cheap,
-            context_window: 1_000_000,
         },
         // ollama + any unknown provider: the keyless local floor.
         _ => ModelCapabilities {
             tool_call: true,
             structured_json: false,
             cost_tier: CostTier::Local,
-            context_window: 8_192,
         },
     }
 }
@@ -196,4 +255,45 @@ pub(crate) fn configured_providers(list: &str) -> std::collections::BTreeSet<Str
         .collect();
     set.insert("ollama".to_owned()); // keyless local floor is always a valid route
     set
+}
+
+#[cfg(test)]
+mod provider_base_url_tests {
+    use super::provider_base_url_from;
+
+    /// ISS-141. The guest and the tractor host parse the SAME string with the SAME rule, and this
+    /// is the guest half of that lockstep. The host validates every request against its own
+    /// resolution of this map, so any divergence here builds requests the host refuses.
+    #[test]
+    fn reads_one_providers_endpoint() {
+        let raw =
+            "github-copilot=https://api.business.githubcopilot.com,openai-codex=https://chatgpt.com";
+        assert_eq!(
+            provider_base_url_from(raw, "github-copilot").as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
+        assert_eq!(
+            provider_base_url_from(raw, "openai-codex").as_deref(),
+            Some("https://chatgpt.com")
+        );
+        assert!(provider_base_url_from(raw, "groq").is_none());
+        assert!(provider_base_url_from("", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn drops_what_it_cannot_read_rather_than_guessing() {
+        assert!(provider_base_url_from("github-copilot=ftp://x.example", "github-copilot").is_none());
+        assert!(provider_base_url_from("github-copilot=", "github-copilot").is_none());
+        assert!(provider_base_url_from("no-equals-sign", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn copilot_has_a_default_that_is_not_the_ollama_floor() {
+        // The whole failure this closes: a dispatch routed to github-copilot resolved to
+        // http://localhost:11434 and reported "Model provider unavailable: ollama" for a request
+        // nobody made to ollama.
+        let (base, model) = super::openai_compat_defaults("github-copilot");
+        assert!(base.contains("githubcopilot.com"), "got {base}");
+        assert_ne!(model, "llama3.2");
+    }
 }

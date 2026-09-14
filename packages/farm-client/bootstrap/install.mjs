@@ -16,12 +16,21 @@ import { createHash } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const HOST = process.env.FARM_HOST || "__FARM_HOST__";
 const PORT = Number(process.env.FARM_DIST_PORT || "__FARM_PORT__");
 const KIT_DIR = process.env.FARM_KIT_DIR || join(homedir(), ".refarm", "kit", "farm-client");
 
-if (!HOST || HOST === "__FARM_HOST__") {
+// The "nobody baked a host into me" sentinel, assembled at RUN time so that
+// `bakeInstaller`'s replaceAll cannot rewrite it. Written as a literal, this
+// guard was substituted along with the value it guards — `refarm dist publish
+// --host serpro-1577853` produced `HOST === "serpro-1577853"`, so the baked
+// installer refused its own baked farm and the cold-bootstrap one-liner exited 2
+// every time unless the operator overrode FARM_HOST with a DIFFERENT name.
+const UNBAKED = ["__FARM", "HOST__"].join("_");
+
+if (!HOST || HOST === UNBAKED) {
 	console.error("❌ defina FARM_HOST (o nome MagicDNS da fazenda), ex.: FARM_HOST=serpro-1577853");
 	process.exit(2);
 }
@@ -38,7 +47,11 @@ const safeRelPath = (p) =>
 const base = `http://${HOST}:${port}`;
 async function get(path, kind) {
 	const res = await fetch(`${base}/${path}`);
-	if (!res.ok) throw new Error(`HTTP ${res.status} em ${path}`);
+	if (!res.ok) {
+		const error = new Error(`HTTP ${res.status} em ${path}`);
+		error.status = res.status;
+		throw error;
+	}
 	return kind === "bytes" ? Buffer.from(await res.arrayBuffer()) : await res.text();
 }
 
@@ -47,9 +60,25 @@ let manifest;
 try {
 	manifest = JSON.parse(await get("manifest.json", "text"));
 } catch (err) {
-	console.error(`❌ manifesto inalcançável: ${err.message}`);
+	if (err?.status === 404) {
+		console.error(`❌ manifesto ausente em ${base}/manifest.json: o servidor respondeu HTTP 404`);
+		console.error(
+			"   A rede, o nome do host e o web-serve responderam; o diretório servido não contém manifest.json.",
+		);
+	} else if (Number.isInteger(err?.status)) {
+		console.error(`❌ manifesto recusado: o servidor respondeu HTTP ${err.status}`);
+		console.error("   O host está alcançável; inspecione a resposta e a política do web-serve.");
+	} else {
+		console.error(`❌ fazenda inalcançável: ${err.message}`);
+	}
 	console.error(
-		`   A fazenda serve? No PC: refarm dist publish --host ${HOST} && refarm web serve .refarm/dist/farm-client --host 0.0.0.0 --port ${port}`,
+		`   A fazenda serve? No PC: refarm dist publish --host ${HOST} && refarm web serve .refarm/dist/farm-client --port ${port}`,
+	);
+	// O bind fora do loopback é RECUSADO sem política de auth (esse listener faz proxy
+	// de /sync para o socket CRDT do daemon). Dizer o comando sem a pré-condição fazia
+	// o operador levar a recusa na cara depois de seguir a instrução.
+	console.error(
+		'   (o web serve só sai do loopback se .refarm/config.json declarar: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } })',
 	);
 	process.exit(1);
 }
@@ -84,4 +113,42 @@ await rm(staging, { recursive: true, force: true });
 
 console.log(`\n✔ farm-client ${manifest.version ?? ""} instalado em ${KIT_DIR}`);
 console.log(`  fazenda lembrada: ${HOST}`);
-console.log(`  rode: node ${join(KIT_DIR, "bin", "farm-ask.mjs")} "quem é você?"\n`);
+
+// Atalhos: o instalador não pode importar o kit ANTES de instalá-lo — mas
+// depois, pode. Então ele USA o `src/shims.mjs` que acabou de escrever em vez de
+// reimplementar o plantio aqui (o mesmo módulo que o farm-update replanta a cada
+// atualização). Se a fazenda servir um kit antigo, sem o módulo, a instalação
+// segue válida e o operador recebe o caminho completo.
+//
+// O perfil de shell continua NUNCA sendo editado em silêncio. O que mudou é que,
+// havendo um terminal, o instalador PEDE — mostrando o arquivo, a linha e a
+// posição exatas — e registra a resposta (src/path-operation.mjs). Sem terminal,
+// ou com uma decisão já registrada, a fala é exatamente a de sempre.
+try {
+	const shims = await import(pathToFileURL(join(KIT_DIR, "src", "shims.mjs")).href);
+	const binDir = shims.defaultBinDir();
+	const planted = await shims.installShims({ kitDir: KIT_DIR, binDir });
+	if (planted.created.length === 0) {
+		throw new Error(`nenhum atalho pôde ser criado em ${binDir}`);
+	}
+	const status = shims.pathStatus({ binDir });
+	let lines;
+	try {
+		const operation = await import(pathToFileURL(join(KIT_DIR, "src", "path-operation.mjs")).href);
+		({ lines } = await operation.ensurePathOperation({
+			binDir,
+			kitDir: KIT_DIR,
+			status,
+			home: homedir(),
+		}));
+	} catch {
+		// Kit antigo (sem o módulo) ou qualquer falha na jornada: a instalação já
+		// deu certo, então cai-se na fala de sempre em vez de estragar o final.
+		lines = shims.pathAdviceLines(status, { kitDir: KIT_DIR });
+	}
+	for (const line of lines) console.log(line);
+} catch (err) {
+	console.log(`  (sem atalhos: ${err.message})`);
+	console.log(`  rode: node ${join(KIT_DIR, "bin", "farm-ask.mjs")} "quem é você?"`);
+}
+console.log("");

@@ -81,6 +81,37 @@
 							"type": "string"
 						},
 						"description": "IDs of other requirements this depends on"
+					},
+					"title": {
+						"type": "string",
+						"description": "Short heading for the requirement, e.g. 'Continuidade operacional'. Optional: the May-era cohort has none."
+					},
+					"maturity": {
+						"type": "string",
+						"enum": [
+							"provado",
+							"parcial",
+							"projetado",
+							"ausente",
+							"decisao-do-operador",
+							"desconhecido"
+						],
+						"description": "What reality measures, in the operator's own six-state vocabulary (docs/OPERATOR_REQUIREMENTS.md). Distinct from `status`, which is what the operator DECIDED: a requirement can be accepted and parcial at once. Tokens are Portuguese because the table defining them is."
+					},
+					"maturity_note": {
+						"type": "string",
+						"description": "The justification paragraph carried verbatim from the source document, including any qualifier the enum cannot hold (R8: 'Parcial/Ausente por provedor.')."
+					},
+					"acceptance_criteria_preamble": {
+						"type": "string",
+						"description": "The qualifier between 'Criterios de aceitacao.' and the bullets, when present (R3, R8, R12). Its own field because folding it into a bullet would corrupt a criterion and dropping it would silently make conditional criteria unconditional."
+					},
+					"evidence": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Markdown links to the documents that sustain the current maturity, verbatim."
 					}
 				}
 			}

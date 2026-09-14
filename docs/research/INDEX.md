@@ -10,7 +10,7 @@ This folder serves as a reference library for the research that informed Refarm'
 
 | Layer | Primary Decision | Related ADR |
 |-------|------------------|-------------|
-| **Pluggable Storage** | Multi-engine support (SQLite, PGLite, cr-sqlite) | [ADR-029](../../specs/ADRs/ADR-029-pluggable-relational-storage.md) |
+| **Pluggable Storage** | Multi-engine support (SQLite, PGLite, cr-sqlite) | [ADR-031](../../specs/ADRs/ADR-031-pluggable-relational-storage.md) |
 | **Microkernel** | WASI-compatible sandboxed plugins | [ADR-025](../../specs/ADRs/ADR-025-pure-microkernel-architecture.md) |
 | **Sync Engine** | Field-level CRDT with HLC Convergence | [ADR-028](../../specs/ADRs/ADR-028-crdt-sqlite-convergence-strategy.md) |
 | **Storage Pattern** | Triple-based Op-Log with Materializer | [ADR-028](../../specs/ADRs/ADR-028-crdt-sqlite-convergence-strategy.md) |
@@ -72,6 +72,21 @@ Concludes that Refarm should assimilate Terax as a terminal-observation and work
 
 ---
 
+#### [Iroh 1.0 Distributed Transport Candidate](./2026-08-02-iroh-1-distributed-transport.md)
+**Date**: 2026-08-02 | **Status**: Research verdict — validation candidate, not adopted
+
+Assesses Iroh 1.x as the first concrete native transport candidate beneath ADR-075's
+Pears-inspired availability model. Records endpoint identity, discovery, relay/privacy,
+`iroh-blobs`, bindings/browser limitations, existing Refarm contract ownership, a phased private
+validation, and explicit kill criteria. Keeps Tailnet as the current in-house rail and rejects
+endpoint identity as authorization or `iroh-docs` as a replacement for Loro.
+
+**ADR**: [ADR-075](../../specs/ADRs/ADR-075-pears-distributed-runtime-reference.md) remains the
+accepted platform-shape decision; Iroh is evidence for a contained transport validation, not an
+amendment adopting a dependency.
+
+---
+
 ### Collaborative Editing & Concurrency
 
 #### [Lock Strategies Comparison](./LOCK_STRATEGIES_COMPARISON.md)
@@ -79,7 +94,7 @@ Concludes that Refarm should assimilate Terax as a terminal-observation and work
 Cross-system comparison of collaborative lock models (Google Docs, Notion, Figma, Git, Linear, Confluence, Obsidian) to validate ADR-024's design.
 Confirms that Refarm's optional private-branch model with configurable expiry covers all four locking patterns while preserving full offline support.
 
-**ADR**: [ADR-024](../../specs/ADRs/ADR-024-sovereign-graph-versioning.md) — Sovereign graph versioning with private branch checkout.
+**ADR**: [ADR-024](../../specs/ADRs/ADR-024-pessimistic-editing-modes.md) — Pessimistic editing modes over sovereign graph history.
 
 ---
 
@@ -176,12 +191,14 @@ and recovery plugin authentication strategy (v0.3.0).
 
 ### Foundational Validations
 
-#### [Critical Validations](./critical-validations.md)
+#### Critical Validations (historical source unavailable)
 
 Benchmarks and feasibility studies for Phase 1 browser-native capabilities.
 Confirmed: WebLLM in Workers, 100 GB+ OPFS quotas, and Yjs performance vs Automerge.
 
-**ADR**: Referenced across multiple ADRs as empirical baseline for browser-first feasibility.
+**ADR**: Referenced across multiple ADRs as empirical baseline for browser-first feasibility. The
+historical source is not present in this checkout; do not treat the summary as reproducible evidence
+until it is recovered or re-run.
 
 ---
 
@@ -193,4 +210,4 @@ Confirmed: WebLLM in Workers, 100 GB+ OPFS quotas, and Yjs performance vs Autome
 
 Research files are kept for historical context. For the current technical specification, always refer to the **Architecture** docs and **ADRs**.
 
-**Last Updated**: March 2026
+**Last Updated**: August 2026

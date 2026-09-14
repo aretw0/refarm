@@ -1,0 +1,31 @@
+{
+	"name": "@refarm.dev/emoji-sas-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Emoji short-authentication-string exchange (P-256 ECDH + Matrix's 64 emoji) and the scoped credential it issues \u2014 zero dependencies, browser/node/kit",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
+}

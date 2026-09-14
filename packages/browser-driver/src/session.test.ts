@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	awaitLoginDetected,
 	cookieFetch,
 	cookieHeader,
 	createCookieFetchDriver,
@@ -11,6 +12,7 @@ import {
 	loadCookieState,
 	saveCookieState,
 	type BrowserSession,
+	type LoginProbe,
 	type SessionCookie,
 } from "./index.js";
 
@@ -108,6 +110,67 @@ describe("createLiveFetch — a session that serves its own requests", () => {
 		expect(result.mediaType).toBe("application/rdf+xml");
 		expect(seen[0]!.headers["oslc-core-version"]).toBe("2.0");
 		await live.close();
+	});
+});
+
+describe("awaitLoginDetected — the browser-agnostic login-detection loop", () => {
+	const immediate = { sleep: async () => {} };
+
+	it("returns as soon as the URL has left the login flow and the marker matches", async () => {
+		const probe: LoginProbe = {
+			currentUrl: () => "https://app.example/dashboard",
+			hasSelector: async () => true,
+			hasCookie: async () => true,
+		};
+		await expect(
+			awaitLoginDetected(probe, { urlIncludes: "app.example" }, immediate),
+		).resolves.toBeUndefined();
+	});
+
+	it("keeps polling while still on the login/SSO URL, then resolves when it leaves", async () => {
+		let calls = 0;
+		const probe: LoginProbe = {
+			// login/SSO for the first two polls, then the app.
+			currentUrl: () => (calls++ < 2 ? "https://sso.example/login" : "https://app.example/dashboard"),
+			hasSelector: async () => true,
+			hasCookie: async () => true,
+		};
+		await expect(
+			awaitLoginDetected(probe, { urlIncludes: "app.example" }, { ...immediate, pollIntervalMs: 0 }),
+		).resolves.toBeUndefined();
+		expect(calls).toBeGreaterThanOrEqual(3);
+	});
+
+	it("gates success on a cookieNamed signal (the app's session cookie)", async () => {
+		let present = false;
+		const probe: LoginProbe = {
+			currentUrl: () => "https://app.example/x",
+			hasSelector: async () => true,
+			hasCookie: async () => {
+				const was = present;
+				present = true; // appears on the second poll
+				return was;
+			},
+		};
+		await expect(
+			awaitLoginDetected(probe, { urlIncludes: "app.example", cookieNamed: "JSESSIONID" }, immediate),
+		).resolves.toBeUndefined();
+	});
+
+	it("throws BROWSER_LOGIN_TIMEOUT past the deadline", async () => {
+		let clock = 0;
+		const probe: LoginProbe = {
+			currentUrl: () => "https://sso.example/login", // never leaves the login flow
+			hasSelector: async () => true,
+			hasCookie: async () => true,
+		};
+		await expect(
+			awaitLoginDetected(probe, { urlIncludes: "app.example" }, {
+				...immediate,
+				timeoutMs: 250,
+				now: () => (clock += 100),
+			}),
+		).rejects.toThrow("BROWSER_LOGIN_TIMEOUT");
 	});
 });
 

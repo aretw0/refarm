@@ -1,5 +1,5 @@
 {
-  "schema": "refarm.task-artifacts.v1",
+  "schema": "sovereign.task-artifacts.v1",
   "taskId": "task-citizen-data-wallet-poc",
   "effortId": "effort-citizen-data-wallet-poc-001",
   "createdAt": "2026-01-01T00:00:00.000Z",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildRespondEffort } from "../src/effort.mjs";
+import { buildRespondEffort, parseBudgetDeclaration } from "../src/effort.mjs";
 
 const fixed = {
 	randomUUID: (() => {
@@ -39,4 +39,68 @@ test("historyTurns and source are honored", () => {
 test("submittedAt is an ISO string from the injected clock", () => {
 	const effort = buildRespondEffort("q", { ...fixed });
 	assert.equal(effort.submittedAt, new Date(0).toISOString());
+});
+
+test("no budget declared ⇒ the effort carries no budget key at all (byte-identical to before)", () => {
+	const effort = buildRespondEffort("oi", { ...fixed });
+	assert.equal("budget" in effort, false);
+	assert.equal(JSON.stringify(effort).includes("budget"), false);
+});
+
+test("a declared deadline rides the effort as budget.deadlineMs", () => {
+	const effort = buildRespondEffort("oi", { ...fixed, deadlineMs: 120000 });
+	assert.deepEqual(effort.budget, { deadlineMs: 120000 });
+});
+
+test("all three declared axes ride as one budget object", () => {
+	const effort = buildRespondEffort("oi", {
+		...fixed,
+		deadlineMs: 120000,
+		maxTokens: 50000,
+		maxUsd: 2.5,
+	});
+	assert.deepEqual(effort.budget, { deadlineMs: 120000, maxTokens: 50000, maxUsd: 2.5 });
+});
+
+test("parseBudgetDeclaration: absent axes produce no key, never 0 or null", () => {
+	const budget = parseBudgetDeclaration({ deadlineMs: 120000 });
+	assert.deepEqual(budget, { deadlineMs: 120000 });
+	assert.equal("maxTokens" in budget, false);
+	assert.equal("maxUsd" in budget, false);
+});
+
+test("parseBudgetDeclaration: nothing declared returns undefined", () => {
+	assert.equal(parseBudgetDeclaration({}), undefined);
+	assert.equal(parseBudgetDeclaration(), undefined);
+});
+
+test("parseBudgetDeclaration: accepts a numeric string (the env-var shape)", () => {
+	const budget = parseBudgetDeclaration({ maxTokens: "50000" });
+	assert.deepEqual(budget, { maxTokens: 50000 });
+});
+
+test("parseBudgetDeclaration: accepts an explicit zero as a real ceiling", () => {
+	const budget = parseBudgetDeclaration({ maxTokens: 0 });
+	assert.deepEqual(budget, { maxTokens: 0 });
+});
+
+test("parseBudgetDeclaration: rejects a negative value, naming the field", () => {
+	assert.throws(
+		() => parseBudgetDeclaration({ deadlineMs: -1 }),
+		/budget\.deadlineMs must not be negative, got -1/,
+	);
+});
+
+test("parseBudgetDeclaration: rejects a non-numeric value, naming the field", () => {
+	assert.throws(
+		() => parseBudgetDeclaration({ maxUsd: "soon" }),
+		/budget\.maxUsd must be a number, got "soon"/,
+	);
+});
+
+test("parseBudgetDeclaration: rejects an empty string rather than reading it as zero", () => {
+	assert.throws(
+		() => parseBudgetDeclaration({ maxTokens: "  " }),
+		/budget\.maxTokens must be a number, got an empty string/,
+	);
 });

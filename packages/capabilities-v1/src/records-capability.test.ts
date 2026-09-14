@@ -121,6 +121,34 @@ describe("records operator verbs (generic records:v1)", () => {
 		expect(envelope.provider.providerId).toBeTruthy();
 	});
 
+	it("enrich emits a real EnrichmentTelemetryEvent for the provider.enrich() call", async () => {
+		const envelope = (await run("enrich")) as {
+			telemetry: {
+				traceId: string;
+				pluginId: string;
+				capability: string;
+				operation: string;
+				durationMs: number;
+				ok: boolean;
+				errorCode?: string;
+			};
+		};
+		const { telemetry } = envelope;
+		// A real, per-invocation id — not a stub. Two calls must not collide.
+		expect(telemetry.traceId).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+		);
+		const other = (await run("enrich")) as typeof envelope;
+		expect(other.telemetry.traceId).not.toBe(telemetry.traceId);
+		// The event's OWN fields, straight from the injected provider — not hardcoded.
+		expect(telemetry.pluginId).toBe(defaultRecordsDeps().enrichmentProvider.pluginId);
+		expect(telemetry.capability).toBe("enrichment:v1");
+		expect(telemetry.operation).toBe("enrich");
+		expect(telemetry.ok).toBe(true);
+		expect(telemetry.errorCode).toBeUndefined();
+		expect(telemetry.durationMs).toBeGreaterThanOrEqual(0);
+	});
+
 	it("enrich --apply reports apply mode (the operator's explicit call)", async () => {
 		const envelope = (await run("enrich", { apply: true })) as { mode: string };
 		expect(envelope.mode).toBe("apply");

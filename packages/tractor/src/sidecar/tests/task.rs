@@ -126,7 +126,13 @@ async fn sidecar_tasks_empty_returns_empty_list() {
         .unwrap();
 
     assert_eq!(body["tasks"].as_array().unwrap().len(), 0);
-    assert_eq!(body["total"].as_u64().unwrap(), 0);
+    // `total` is GONE, not renamed. It was computed after the truncate, so it always equalled
+    // the page size — a consumer reading it to ask "is there more" got "no", always. A key
+    // whose meaning changes silently is worse than one that vanishes loudly (ISS-041).
+    assert!(body.get("total").is_none(), "total was removed, not redefined");
+    // The empty answer now says WHICH empty it is: nothing stored, and nothing withheld.
+    assert_eq!(body["stored"].as_u64().unwrap(), 0);
+    assert_eq!(body["truncated"].as_bool().unwrap(), false);
 }
 
 #[tokio::test]
@@ -217,4 +223,164 @@ async fn sidecar_get_task_returns_task_with_events() {
         .collect();
     assert!(event_names.contains(&"created"));
     assert!(event_names.contains(&"status_changed"));
+}
+
+#[tokio::test]
+async fn sidecar_tasks_limit_is_taken_in_the_same_order_it_is_presented() {
+    // BE PRECISE ABOUT WHAT THIS PINS. The code replaced here would pass it: it read every row,
+    // sorted the WHOLE set by `created_at_ns`, and only then truncated — correct order at
+    // unbounded cost. What this guards is the naive fix, the one a future editor reaches for
+    // first: move the limit into SQL and leave the Rust re-sort behind it. That takes the page
+    // by the store's order (`updated_at DESC, id DESC`) and presents it by another, which
+    // answers neither question.
+    //
+    // The two keys disagree here on purpose — `t_old` is written LAST, so it is the newest by
+    // updated_at and the oldest by created_at. Under the naive fix, `?limit=1` returns `t_old`
+    // and calls it the newest.
+    let ns = storage_path();
+    write_task(&ns, "urn:task:t_new", "Newest by created_at", "done", None, 9_000);
+    write_task(&ns, "urn:task:t_old", "Oldest by created_at", "done", None, 1_000);
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/tasks?limit=1", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let tasks = body["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(
+        tasks[0]["@id"].as_str().unwrap(),
+        "urn:task:t_new",
+        "the ONE row a limit of 1 returns must be the one the presented order calls first"
+    );
+    assert_eq!(body["stored"].as_u64().unwrap(), 2, "stored counts what exists, not the page");
+    assert_eq!(body["truncated"].as_bool().unwrap(), true);
+}
+
+#[tokio::test]
+async fn sidecar_tasks_filter_is_applied_before_the_limit_not_after() {
+    // ISS-045's shape, guarded on the endpoint that would have grown it: three `active` tasks
+    // are newer than the only `done` one, so a limit applied to the UNFILTERED set and then
+    // filtered would return an empty list and report the record as complete.
+    let ns = storage_path();
+    write_task(&ns, "urn:task:d1", "The done one", "done", None, 1_000);
+    write_task(&ns, "urn:task:a1", "Active", "active", None, 2_000);
+    write_task(&ns, "urn:task:a2", "Active", "active", None, 3_000);
+    write_task(&ns, "urn:task:a3", "Active", "active", None, 4_000);
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/tasks?status=done&limit=1", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let tasks = body["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1, "the done task is reachable even though three newer ones are not done");
+    assert_eq!(tasks[0]["@id"].as_str().unwrap(), "urn:task:d1");
+    assert_eq!(
+        body["stored"].as_u64().unwrap(),
+        1,
+        "stored counts what MATCHES the filter — a count over all four would make truncated lie"
+    );
+    assert_eq!(body["truncated"].as_bool().unwrap(), false);
+}
+
+#[tokio::test]
+async fn sidecar_tasks_offset_reaches_the_rows_a_page_left_behind() {
+    let ns = storage_path();
+    write_task(&ns, "urn:task:p1", "First", "done", None, 3_000);
+    write_task(&ns, "urn:task:p2", "Second", "done", None, 2_000);
+    write_task(&ns, "urn:task:p3", "Third", "done", None, 1_000);
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let page_two: serde_json::Value =
+        reqwest::get(format!("{}/tasks?limit=2&offset=2", base(port)))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+    let tasks = page_two["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0]["@id"].as_str().unwrap(), "urn:task:p3");
+    assert_eq!(page_two["offset"].as_u64().unwrap(), 2);
+    // The last page is NOT truncated: rows before the offset were skipped on purpose and are
+    // reachable by asking again, so "is there more" means more BEYOND this page.
+    assert_eq!(
+        page_two["truncated"].as_bool().unwrap(),
+        false,
+        "stored(3) > nodes(1) is true and yet nothing remains — offset must count as delivered"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_tasks_session_filter_and_malformed_payload_are_both_excluded_consistently() {
+    let ns = storage_path();
+    write_task(&ns, "urn:task:s1", "Mine", "done", Some("urn:session:a"), 2_000);
+    write_task(&ns, "urn:task:s2", "Theirs", "done", Some("urn:session:b"), 1_000);
+    // A row whose payload is not JSON. The Rust code this replaces dropped such rows silently
+    // via `from_str(..).ok()`; the SQL `json_valid` guard must drop it from BOTH the page and
+    // the count, or `truncated` would claim a row exists that the endpoint can never return.
+    crate::storage::NativeStorage::open(&ns)
+        .unwrap()
+        .store_node("urn:task:broken", "Task", None, "not json at all", None)
+        .unwrap();
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!(
+        "{}/tasks?session_id=urn%3Asession%3Aa",
+        base(port)
+    ))
+    .await
+    .unwrap()
+    .json()
+    .await
+    .unwrap();
+
+    let tasks = body["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0]["@id"].as_str().unwrap(), "urn:task:s1");
+    assert_eq!(body["stored"].as_u64().unwrap(), 1);
+    assert_eq!(body["truncated"].as_bool().unwrap(), false);
+}
+
+#[tokio::test]
+async fn the_response_says_which_clock_the_newest_n_means() {
+    // ISS-115. This endpoint orders by `created_at_ns`; the guest's `list_tasks` goes through the
+    // bridge and gets the store's `updated_at DESC`. For any Task whose status changed since
+    // creation — the ordinary case — the two return a DIFFERENT "newest N" for identical data.
+    //
+    // Both are defensible: an operator listing tasks wants the newest by creation, an agent
+    // loading prompt context wants the most recently active. The defect was never that they
+    // differ; it was that NEITHER SAID WHICH QUESTION IT ANSWERS, so a consumer comparing them
+    // saw a disagreement with nothing to attribute it to.
+    let ns = storage_path();
+    write_task(&ns, "urn:task:o1", "One", "done", None, 1_000);
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/tasks", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(body["order"].as_str().unwrap(), "created");
+    // And it is stated on the EMPTY answer too — a consumer must not have to find a row before it
+    // can learn what the ordering means.
+    let ns_empty = storage_path();
+    let (_empty_state, empty_port) = start_tasks_sidecar(&ns_empty).await;
+    let empty: serde_json::Value = reqwest::get(format!("{}/tasks", base(empty_port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(empty["order"].as_str().unwrap(), "created");
 }

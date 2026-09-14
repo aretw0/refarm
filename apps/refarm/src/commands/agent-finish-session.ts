@@ -105,7 +105,13 @@ function normalizeCheckpoint(raw: unknown): AgentFinishSessionCheckpoint | null 
 function normalizeFinishRecord(raw: unknown): OperatorResumeFinishRecord | null {
 	if (!raw || typeof raw !== "object") return null;
 	const current = raw as Record<string, unknown>;
-	const status = current.status === "passed" || current.status === "failed" ? current.status : null;
+	// A record written by a build that knows an outcome this one does not must not vanish: the
+	// reader would drop the whole record and report "no previous gate", which is a worse lie than
+	// an unfamiliar label.
+	const status =
+		current.status === "passed" || current.status === "failed" || current.status === "timed-out"
+			? current.status
+			: null;
 	if (!status) return null;
 	const command = typeof current.command === "string" ? current.command : "";
 	const updatedAt =

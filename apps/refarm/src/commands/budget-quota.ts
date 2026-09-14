@@ -1,0 +1,155 @@
+/**
+ * `refarm budget quota` — the provider's remainder beside this node's dispatches.
+ *
+ * ISS-073 step 1. The contract that decides what the pairing MEANS lives in
+ * @refarm.dev/model-account-contract-v1 (`reconcileAccountQuota`, `quotaWindowFor`); this file
+ * only composes it with the two readers that already exist — `readQuotaRows` for the provider
+ * side, the BudgetObservation record for this node's side.
+ *
+ * It emits no total. The two counts are in different units and the attribution between them is
+ * unknown, which the contract states in every row rather than leaving a reader to subtract.
+ */
+import {
+	checkWorkspaceAllowance,
+	type AllowanceVerdict,
+	type WorkspaceAllowance,
+} from "@refarm.dev/budget-contract-v1";
+import {
+	describeReconciliation,
+	quotaWindowFor,
+	reconcileAccountQuota,
+	type MeterReconciliation,
+	type MeterUsageFact,
+	type QuotaWindow,
+} from "@refarm.dev/model-account-contract-v1";
+
+import { dispatchedPerAccount, parsePeriodSpec, type ObservationNode } from "./budget.js";
+import type { AccountQuotaRow } from "./credential-quota.js";
+
+export interface QuotaReconciliationRow {
+	readonly credentialId: string;
+	readonly alias: string;
+	readonly provider: string;
+	/** How the provider answered — `read` is the only outcome that carries meters. */
+	readonly outcome: AccountQuotaRow["outcome"];
+	readonly detail?: string;
+	/** `null` when no window could be established, which makes every count in this row unplaceable
+	 *  rather than wrong. */
+	readonly window: (QuotaWindow & { readonly label: string }) | null;
+	/** Which workspaces spent this seat in that window, largest first. Empty when the account was
+	 *  spent only by dispatches that named no workspace — which is a fact, not an absence. */
+	readonly workspaces: readonly {
+		readonly id: string;
+		readonly requests: number;
+		/** Where the workspace stands against its declared per-period allowance, if it has one. */
+		readonly allowance: AllowanceVerdict;
+	}[];
+	readonly meters: readonly MeterReconciliation[];
+	/** The prose a surface renders, one line per meter. */
+	readonly notes: readonly string[];
+}
+
+export interface QuotaReconciliationReport {
+	readonly rows: readonly QuotaReconciliationRow[];
+	/** Dated dispatches inside SOME window that named no account. Never folded into a row. */
+	readonly unattributed: number;
+	/** Dispatches carrying no timestamp, which no window can claim. */
+	readonly undated: number;
+}
+
+/**
+ * PURE. Pair each account's provider meters with what this node dispatched in the same period.
+ *
+ * `nowMs` is injected rather than read, so a test pins the calendar instead of inheriting the
+ * moment it happens to run — the same reason `parsePeriodSpec` takes it.
+ */
+export function reconcileQuotaRows(
+	rows: readonly AccountQuotaRow[],
+	observations: readonly ObservationNode[],
+	nowMs: number,
+	/** Declared, dated measurements of which meter a model spends — ISS-073 step 3. Empty means
+	 *  nothing was measured, which lands every metered row on `unknown` rather than on a claim. */
+	meterFacts: readonly MeterUsageFact[] = [],
+	/** Declared per-period allowances. Empty means no workspace is bounded, which is what a node
+	 *  that never asked to be capped must keep getting. */
+	allowances: readonly WorkspaceAllowance[] = [],
+): QuotaReconciliationReport {
+	let unattributed = 0;
+	let undated = 0;
+
+	const reconciled = rows.map((row): QuotaReconciliationRow => {
+		const window = row.quota ? quotaWindowFor(row.quota.resetsAt) : null;
+		if (!row.quota || !window) {
+			return {
+				credentialId: row.credentialId,
+				alias: row.alias,
+				provider: row.provider,
+				outcome: row.outcome,
+				...(row.detail !== undefined ? { detail: row.detail } : {}),
+				window: null,
+				workspaces: [],
+				meters: [],
+				notes: [noWindowNote(row)],
+			};
+		}
+
+		const period = parsePeriodSpec(window.spec, nowMs);
+		const counted = dispatchedPerAccount(observations, period);
+		// Counted once, from the first row that establishes a window: these buckets are about the
+		// RECORD, not about an account, and adding them up per row would multiply them.
+		unattributed = Math.max(unattributed, counted.unattributed);
+		undated = Math.max(undated, counted.undated);
+
+		const meters = reconcileAccountQuota(
+			row.quota,
+			{
+				credentialId: row.credentialId,
+				requests: counted.byAccount.get(row.credentialId) ?? 0,
+				windowStart: window.spec,
+				// `undefined`, not an empty list, when this account sent traffic whose model could
+				// not be read. An empty list means "looked, found none" and would let a meter claim
+				// it went untouched by dispatches nobody could classify.
+				...((counted.modelUnknownByAccount.get(row.credentialId) ?? 0) === 0
+					? { models: counted.modelsByAccount.get(row.credentialId) ?? [] }
+					: {}),
+			},
+			meterFacts,
+		);
+
+		const shares = counted.workspacesByAccount.get(row.credentialId) ?? new Map<string, number>();
+		return {
+			credentialId: row.credentialId,
+			alias: row.alias,
+			provider: row.provider,
+			outcome: row.outcome,
+			...(row.detail !== undefined ? { detail: row.detail } : {}),
+			window: { ...window, label: period.label },
+			// Largest first: the question this answers is "who is eating this seat", and the
+			// answer is the top of the list.
+			workspaces: [...shares.entries()]
+				.map(([id, requests]) => ({
+					id,
+					requests,
+					allowance: checkWorkspaceAllowance(id, requests, allowances),
+				}))
+				.sort((a, b) => b.requests - a.requests || a.id.localeCompare(b.id)),
+			meters,
+			notes: meters.map(describeReconciliation),
+		};
+	});
+
+	return { rows: reconciled, unattributed, undated };
+}
+
+/** PURE. Why a row carries no comparison — three different reasons, and an operator repairs each
+ *  differently, so they must not collapse into "no data". */
+function noWindowNote(row: AccountQuotaRow): string {
+	if (row.outcome !== "read") {
+		return `${row.alias}: the provider did not answer (${row.outcome}${row.detail ? `: ${row.detail}` : ""}), so there is no remainder to compare against — which is not the same as having none left.`;
+	}
+	return (
+		`${row.alias}: the provider answered but stated no reset date this build can turn into a ` +
+		"period, so this node's own dispatch count cannot be placed against its meters. The meters " +
+		"below are still the provider's own figures."
+	);
+}

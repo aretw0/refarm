@@ -1,6 +1,7 @@
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import type { CapabilityDescriptor, CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 import type { RecordsCommandDeps } from "@refarm.dev/capability-host";
+import { readProvenance } from "@refarm.dev/provenance-contract-v1";
 import { searchRecords, type SearchDispatcher } from "@refarm.dev/vault-contract-v1";
 
 /**
@@ -18,6 +19,12 @@ interface SearchResultRow {
 	title: string;
 	tipo?: string;
 	sistema?: string;
+	/** Under what license the requirement's content may be used (provenance:v1's NoteProvenance.
+	 * license), read back off the record's stamped provenance so an analyst sees it before
+	 * promoting a hit — not just at ingest time. */
+	license?: string;
+	/** The publication-privacy posture governing the requirement (NoteProvenance.privacy). */
+	privacy?: string;
 	score: number;
 }
 
@@ -31,7 +38,9 @@ function escapeHtml(value: string): string {
 
 /** Project the search results into a DS-styled list — the verb's OWN web render, painted by the
  * capability web surface's action-result region (declared via `renderers.web.resultField`). Facets
- * (tipo/sistema) ride along as a muted caption so an analyst sees WHY a hit matched. */
+ * (tipo/sistema, and — when the ingest stamped them — license/privacy) ride along as a muted
+ * caption so an analyst sees WHY a hit matched, and under what terms it may be used, before
+ * promoting it. */
 function renderSearchResultsHtml(query: string, results: SearchResultRow[]): string {
 	if (results.length === 0) {
 		return `<div class="refarm-stack" data-search-results data-match-count="0">
@@ -40,7 +49,15 @@ function renderSearchResultsHtml(query: string, results: SearchResultRow[]): str
 	}
 	const items = results
 		.map((r) => {
-			const facets = [r.tipo, r.sistema].filter(Boolean).map((f) => escapeHtml(String(f))).join(" · ");
+			const facets = [
+				r.tipo,
+				r.sistema,
+				r.license ? `license: ${r.license}` : undefined,
+				r.privacy ? `privacy: ${r.privacy}` : undefined,
+			]
+				.filter(Boolean)
+				.map((f) => escapeHtml(String(f)))
+				.join(" · ");
 			const caption = facets ? `<span class="refarm-card-summary">${facets}</span>` : "";
 			return `<li data-record-id="${escapeHtml(r.recordId)}">
 				<span class="refarm-card-name">${escapeHtml(r.title)}</span>
@@ -117,11 +134,14 @@ export function createRequirementsSearchCapability(
 				const record = manifest.records.find((r) => r.id === hit.recordId);
 				const existing = byRecord.get(hit.recordId);
 				const score = (existing?.score ?? 0) + (hit.score ?? 1);
+				const provenance = readProvenance(record?.fields);
 				byRecord.set(hit.recordId, {
 					recordId: hit.recordId,
 					title: String(record?.fields?.title ?? hit.recordId),
 					tipo: record?.fields?.tipo ? String(record.fields.tipo) : undefined,
 					sistema: record?.fields?.sistema ? String(record.fields.sistema) : undefined,
+					license: provenance?.license,
+					privacy: provenance?.privacy,
 					score,
 				});
 			}

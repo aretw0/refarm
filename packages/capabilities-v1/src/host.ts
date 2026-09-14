@@ -13,6 +13,7 @@ import {
 } from "@refarm.dev/capabilities";
 import type { CapabilityHooksResolver, TuiThemeLike } from "@refarm.dev/surface-terminal";
 import { applicationCommand } from "@refarm.dev/cli/command-handoff";
+import { DEFAULT_BIND_HOST } from "@refarm.dev/std";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import {
 	buildBaseSurfaceModel,
@@ -127,6 +128,11 @@ export interface CapabilityHostServeOptions {
 	commandName?: string;
 	description?: string;
 	defaultPort?: number;
+	/** Default bind address for the generated `serve` command. Omit → loopback
+	 * (`DEFAULT_BIND_HOST`). A non-loopback value still has to pass the shared bind guard at
+	 * listen time (an auth policy must be configured), so setting this cannot open a surface
+	 * on its own. */
+	defaultHost?: string;
 	prefix?: string;
 	requestTimeoutMs?: number;
 	openApiPath?: string;
@@ -163,6 +169,9 @@ export interface CapabilityHostDefinition {
 
 export interface CapabilityHostServeCallOptions {
 	port?: number;
+	/** Bind address. Omit → loopback. A non-loopback host is refused unless an auth policy is
+	 * configured (`REFARM_AUTH_POLICY`) — see serveCapabilities' bind safety note. */
+	host?: string;
 	prefix?: string;
 	requestTimeoutMs?: number;
 	openApiPath?: string;
@@ -188,11 +197,22 @@ export interface CapabilityHost {
 	serve(options?: CapabilityHostServeCallOptions): ReturnType<typeof serveCapabilities>;
 }
 
+/** Render a bound `(host, port)` as an origin. IPv6 literals are bracketed so the URL parses.
+ * The host is reported AS BOUND — an unspecified bind renders `0.0.0.0`, not a friendlier
+ * `127.0.0.1`, because the point of this string is to tell the operator where the surface
+ * actually is. */
+function serveOrigin(host: string, port: number): string {
+	const authority = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+	return `http://${authority}:${port}`;
+}
+
 export function buildCapabilityHostServeInfo(
 	port: number,
-	options: Pick<CapabilityHostServeCallOptions, "prefix" | "openApiPath"> = {},
+	options: Pick<CapabilityHostServeCallOptions, "prefix" | "openApiPath" | "host"> = {},
 ): CapabilityHostServeInfo {
-	const origin = `http://127.0.0.1:${port}`;
+	// Was hardcoded `127.0.0.1` — correct for the default, a LIE for any other bind. Now the
+	// caller passes what it bound; the default stays loopback for callers that pass nothing.
+	const origin = serveOrigin(options.host ?? DEFAULT_BIND_HOST, port);
 	return {
 		ok: true,
 		url: origin,
@@ -324,6 +344,9 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 			const serveOptions = normalizedServeOptions(definition);
 			return serveCapabilities(bundle.registry, {
 				port: options.port ?? serveOptions.defaultPort,
+				// Loopback unless the app AND the caller both say otherwise; the guard in
+				// serveCapabilities still has the final say.
+				host: options.host ?? serveOptions.defaultHost ?? DEFAULT_BIND_HOST,
 				prefix: options.prefix ?? serveOptions.prefix,
 				requestTimeoutMs: options.requestTimeoutMs ?? serveOptions.requestTimeoutMs,
 				openApiPath: options.openApiPath ?? serveOptions.openApiPath,
@@ -722,9 +745,15 @@ function addServeCommand(
 		.command(options.commandName ?? "serve")
 		.description(options.description ?? `Serve ${definition.command}'s capability routes over HTTP`)
 		.option("--port <port>", "TCP port (0 = pick free)", String(options.defaultPort ?? 0))
-		.action(async (opts: { port: string }) => {
+		.option(
+			"--host <host>",
+			"Bind address; a non-loopback host needs REFARM_AUTH_POLICY configured or the bind is refused",
+			options.defaultHost ?? DEFAULT_BIND_HOST,
+		)
+		.action(async (opts: { port: string; host: string }) => {
 			const { listening } = serveCapabilities(registry, {
 				port: Number(opts.port),
+				host: opts.host,
 				prefix: options.prefix,
 				requestTimeoutMs: options.requestTimeoutMs,
 				openApiPath: options.openApiPath,
@@ -732,8 +761,10 @@ function addServeCommand(
 				openApiVersion: options.openApiVersion,
 				...(options.routeHandlers ? { routeHandlers: options.routeHandlers } : {}),
 			});
-			const { port } = await listening;
-			console.log(JSON.stringify(buildCapabilityHostServeInfo(port, options)));
+			// Report the host that was actually BOUND, not the one that was asked for and not
+			// a hardcoded `127.0.0.1`. `listening` resolves with both.
+			const { port, host } = await listening;
+			console.log(JSON.stringify(buildCapabilityHostServeInfo(port, { ...options, host })));
 		});
 }
 

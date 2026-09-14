@@ -180,13 +180,25 @@ gh auth setup-git
 `GH_TOKEN` and no stored `gh` login are available. This is expected on a fresh
 container or after rebuilding without a persisted GitHub CLI config volume.
 
-### Refarm Silo Persistence
+### Refarm Credential Context
 
-`refarm sow` writes operator credentials under `$REFARM_HOME` through
-`@refarm.dev/silo`. In the devcontainer, `REFARM_HOME` defaults to
-`/workspaces/refarm/.refarm` so human shells, hooks, and sandboxed agents use
-the same workspace-scoped state. Removing `.refarm/` intentionally resets the
-Silo for this checkout.
+`refarm sow` persists credential material through `@refarm.dev/silo`, whose home
+resolution is `SILO_HOME || REFARM_HOME || ~/.silo`. Runtime startup scripts read
+their environment from `$REFARM_HOME` (default: `/workspaces/refarm/.refarm` in
+the devcontainer). Keep these aligned to avoid "configured in one home, missing
+in runtime" failures.
+
+Recommended verification after setup or migration:
+
+```bash
+refarm model current --json
+refarm runtime status --json
+```
+
+If the reported homes differ from the intended workspace-scoped state, export an
+explicit `REFARM_HOME` (and `SILO_HOME` when needed) before running `refarm sow`.
+Removing `.refarm/` intentionally resets workspace-scoped runtime state for this
+checkout.
 
 Use this after a fresh setup or intentional reset:
 

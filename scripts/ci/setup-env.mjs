@@ -3,6 +3,12 @@ import { SiloCore } from "../../packages/silo/src/index.js";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+// This CI bootstrap is an app entry point (like `packages/config/src/astro.js`): it injects the
+// sovereign-dir default the substrate deliberately does NOT hardcode, so the `loadConfig()` below
+// doesn't throw MissingSovereignDirError under the release/deploy/publish workflows (none of which
+// set SOVEREIGN_DIR). `||=` so an explicit env still wins.
+process.env.SOVEREIGN_DIR ||= ".refarm";
+
 function readPackageScope(packageJsonPath) {
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
 	const [scope] = String(packageJson.name || "").split("/");

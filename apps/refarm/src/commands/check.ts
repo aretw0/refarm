@@ -4,6 +4,7 @@ import { refarmCommand } from "../brand.js";
 
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import { STATUS_DIAGNOSTICS } from "@refarm.dev/cli/status";
+import { guardedAction, type RefusalHandoff } from "./action-boundary.js";
 import { runDefaultNodeSubstrate } from "./check-node-substrate.js";
 import type {
 	EnvironmentPressureCheck,
@@ -54,17 +55,45 @@ async function runDefaultEnvironmentPressure(): Promise<EnvironmentPressureCheck
 	});
 }
 
-async function runDefaultDoctor(options: {
+// Exported (not just used as the default `deps.runDoctor`) so a test can call this exact
+// function directly and prove `runtimeFreshness`/`sovereignDivergences` reach
+// `buildRefarmDoctorReport` from here — see `check-doctor-wiring.test.ts`.
+export async function runDefaultDoctor(options: {
 	failOnWarnings?: boolean;
 }): Promise<RefarmDoctorReport> {
-	const [{ buildRefarmDoctorReport }, { resolveStatusPayload }] = await Promise.all([
-		import("./doctor.js"),
-		import("./status.js"),
-	]);
+	const [{ buildRefarmDoctorReport, resolveFreshness, resolveSovereignDivergences }, { resolveStatusPayload }] =
+		await Promise.all([import("./doctor.js"), import("./status.js")]);
+	const { resolveNodeContextMetadata } = await import("../utils/context-metadata.js");
 	const statusPayload = await resolveStatusPayload({ renderer: "headless" });
 	try {
+		// `connectionConfig` is DELIBERATELY not passed, so `refarm check` stays silent about
+		// declared connections while bare `refarm doctor` warns about them. This is the only
+		// `buildRefarmDoctorReport` call `check` makes — both `deps.runDoctor(...)` sites in
+		// the action below route here — so the omission is decided once, here.
+		//
+		// Why: `check` is the composite GATE the agent loop runs before every commit
+		// (CLAUDE.md §4), and `--fail-on-warnings` turns any warning into a red gate. A
+		// declared connection is an operator-environment fact, not a property of the change
+		// being committed: an operator whose VPN client is not installed on this machine
+		// would have every commit gate on a warning that no edit of theirs can clear. That
+		// trains them to pass `--no-fail-on-warnings`, which costs far more than the warning
+		// is worth. `refarm doctor` (which nobody gates on) and `refarm connection status`
+		// (which the operator runs when they want to know) are the right places for it.
+		//
+		// Changing this changes GATING behaviour — do not wire it in silently.
+		//
+		// `runtimeFreshness` and `sovereignDivergences` are the OPPOSITE case and MUST be
+		// passed: they are not omitted deliberately, they were simply never wired, and their
+		// absence here is the reason `refarm check --next-action --json` — the "all clear"
+		// signal CLAUDE.md §4 tells every agent to trust — could answer clean while `refarm
+		// doctor --json` (fed by the SAME resolvers, in doctor.ts's own action) already listed
+		// `sovereign:plugin-divergence`. Resolved exactly the way `doctor.ts` resolves them at
+		// its own edge, so `check` and bare `doctor` see the identical comparison.
 		return buildRefarmDoctorReport(statusPayload.json, {
 			failOnWarnings: options.failOnWarnings,
+			context: resolveNodeContextMetadata(process.env),
+			runtimeFreshness: resolveFreshness(),
+			sovereignDivergences: resolveSovereignDivergences(),
 		});
 	} finally {
 		await statusPayload.shutdown?.();
@@ -150,6 +179,20 @@ async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 	};
 }
 
+/** Where a `check` that could not COMPLETE sends the operator. Not "the gate failed" —
+ *  that path already prints the report and exits 1 — but "a sub-check threw", e.g. a
+ *  release policy with no `default` selection. The composite cannot say which gate is red
+ *  when one of them never answered, so the handoff is the cheaper component gate. */
+const CHECK_REFUSAL_HANDOFF: RefusalHandoff = {
+	command: "check",
+	operation: "gate",
+	error: "check-incomplete",
+	nextAction:
+		"A `refarm check` sub-check could not complete. Run the component gate to see which one, then re-run.",
+	nextCommand: refarmCommand(["health", "--json"]),
+	nextCommands: [refarmCommand(["health", "--json"]), refarmCommand(["doctor", "--json"])],
+};
+
 function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
 	return recommendation.severity !== "warning" && recommendation.severity !== "info";
 }
@@ -201,90 +244,101 @@ Notes:
   Use it before a commit or handoff when you need a quick local confidence signal.
 `,
 		)
-		.action(async (options: RefarmCheckOptions) => {
-			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
-			let preflightDoctor: RefarmDoctorReport | undefined;
-			if (nextActionOnly) {
-				preflightDoctor = await deps.runDoctor({
-					failOnWarnings: options.failOnWarnings,
-				});
-				if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
-					const recommendations = preflightDoctor.recommendations.filter(isBlockingRecommendation);
-					const payload = buildDiagnosticNextActionPayload({
-						ok: false,
-						nextActions: preflightDoctor.nextActions,
-						nextCommands: preflightDoctor.nextCommands,
-						recommendations,
-					});
-					if (options.json) {
-						printJson(payload);
-					} else if (options.nextCommand) {
-						const [command] = payload.nextCommands;
-						if (command) console.log(command);
-					} else {
-						const [action] = payload.nextActions;
-						if (action) console.log(action);
+		.action(
+			guardedAction(
+				(options: RefarmCheckOptions) => ({
+					json: options.json === true,
+					...CHECK_REFUSAL_HANDOFF,
+				}),
+				async (options: RefarmCheckOptions) => {
+					const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
+					let preflightDoctor: RefarmDoctorReport | undefined;
+					if (nextActionOnly) {
+						preflightDoctor = await deps.runDoctor({
+							failOnWarnings: options.failOnWarnings,
+						});
+						if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
+							const recommendations =
+								preflightDoctor.recommendations.filter(isBlockingRecommendation);
+							const payload = buildDiagnosticNextActionPayload({
+								ok: false,
+								nextActions: preflightDoctor.nextActions,
+								nextCommands: preflightDoctor.nextCommands,
+								recommendations,
+							});
+							if (options.json) {
+								printJson(payload);
+							} else if (options.nextCommand) {
+								const [command] = payload.nextCommands;
+								if (command) console.log(command);
+							} else {
+								const [action] = payload.nextActions;
+								if (action) console.log(action);
+							}
+							process.exitCode = 1;
+							return;
+						}
 					}
-					process.exitCode = 1;
-					return;
-				}
-			}
-			const [
-				doctor,
-				nodeSubstrate,
-				rustSubstrate,
-				environmentPressure,
-				health,
-				model,
-				workspaceExecution,
-				workspaceSweep,
-				releasePolicy,
-			] = await Promise.all([
-				preflightDoctor ??
-					deps.runDoctor({
-						failOnWarnings: options.failOnWarnings,
-					}),
-				deps.runNodeSubstrate?.(),
-				deps.runRustSubstrate?.(),
-				deps.runEnvironmentPressure?.(),
-				deps.runHealth(),
-				nextActionOnly ? undefined : deps.runModelDoctor?.(),
-				nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
-				nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
-				nextActionOnly ? undefined : deps.runReleasePolicy?.(),
-			]);
-			const report = buildRefarmCheckReport({
-				nodeSubstrate,
-				rustSubstrate,
-				environmentPressure,
-				workspaceExecution,
-				workspaceSweep,
-				releasePolicy,
-				health,
-				doctor,
-				model,
-			});
+					const [
+						doctor,
+						nodeSubstrate,
+						rustSubstrate,
+						environmentPressure,
+						health,
+						model,
+						workspaceExecution,
+						workspaceSweep,
+						releasePolicy,
+					] = await Promise.all([
+						preflightDoctor ??
+							deps.runDoctor({
+								failOnWarnings: options.failOnWarnings,
+							}),
+						deps.runNodeSubstrate?.(),
+						deps.runRustSubstrate?.(),
+						deps.runEnvironmentPressure?.(),
+						deps.runHealth(),
+						nextActionOnly ? undefined : deps.runModelDoctor?.(),
+						nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
+						nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
+						nextActionOnly ? undefined : deps.runReleasePolicy?.(),
+					]);
+					const report = buildRefarmCheckReport({
+						nodeSubstrate,
+						rustSubstrate,
+						environmentPressure,
+						workspaceExecution,
+						workspaceSweep,
+						releasePolicy,
+						health,
+						doctor,
+						model,
+					}, {
+						warningsAsBlocking: options.failOnWarnings === true,
+					});
 
-			if (options.nextCommand && options.json) {
-				printRefarmCheckNextActionJson(report);
-			} else if (options.nextCommand) {
-				const [command] = report.nextCommands;
-				if (command) console.log(command);
-			} else if (options.nextAction && options.json) {
-				printRefarmCheckNextActionJson(report);
-			} else if (options.nextAction) {
-				const [action] = report.nextActions;
-				if (action) console.log(action);
-			} else if (options.json) {
-				printJson(report);
-			} else {
-				printRefarmCheckSummary(report);
-			}
+					if (options.nextCommand && options.json) {
+						printRefarmCheckNextActionJson(report);
+					} else if (options.nextCommand) {
+						const [command] = report.nextCommands;
+						if (command) console.log(command);
+					} else if (options.nextAction && options.json) {
+						printRefarmCheckNextActionJson(report);
+					} else if (options.nextAction) {
+						const [action] = report.nextActions;
+						if (action) console.log(action);
+					} else if (options.json) {
+						printJson(report);
+					} else {
+						printRefarmCheckSummary(report);
+					}
 
-			if (!report.ok) {
-				process.exitCode = 1;
-			}
-		});
+					if (!report.ok) {
+						process.exitCode = 1;
+					}
+				},
+			),
+		);
 }
 
 export const checkCommand = createCheckCommand();

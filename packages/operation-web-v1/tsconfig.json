@@ -1,0 +1,13 @@
+{
+	"extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/ds/html": ["packages/ds/dist/html.d.ts"],
+			"@refarm.dev/localization-v1": ["packages/localization-v1/dist/index.d.ts"]
+		}
+	},
+	"include": ["src/**/*"]
+}

@@ -12,14 +12,22 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
+import { readCatalog } from "../credentials/account-view-loader.js";
+import { writeModelCredential, type AccountWriteSilo } from "../credentials/account-write.js";
 import {
 	cloudflareCredentialProvider,
 	githubCredentialProvider,
 	modelCredentialProvider,
 } from "../credentials/index.js";
-import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
-import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
+import {
+	formatSelectionRefusal,
+	resolveModelProviderSelection,
+} from "../credentials/model-provider-selection.js";
+import { OAUTH_PROVIDER_TO_MODEL_PROVIDER, modelProviderInventories } from "../credentials/model.js";
+import { defaultModelForProvider, modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { emitCommandRefusal } from "./command-refusal.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -27,6 +35,7 @@ import {
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 } from "./credential-handoffs.js";
+import { credentialLifetime, type ModelTokens } from "./model.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -39,10 +48,35 @@ function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function hasModelCredential(tokens: Record<string, unknown>, env: NodeJS.ProcessEnv): boolean {
+/**
+ * Does the operator have a model credential the wizard should leave alone?
+ *
+ * PRESENCE IS NOT VALIDITY, and reading the first as the second is what made the wizard useless
+ * on the day it was most needed. Measured on this node 2026-08-12: the `openai-codex` OAuth token
+ * had expired FIVE DAYS earlier, `hasUsableModelCredential` returned true because a credential was
+ * *there*, and `refarm sow` answered "Model: already configured — skipped". The one command an
+ * operator reaches for to fix their login declined to do anything, and said so in a reassuring
+ * tone.
+ *
+ * `credentialLifetime` is the doctor's own function, imported rather than re-derived, so the
+ * wizard and `model doctor` cannot disagree about whether a credential is alive.
+ *
+ * The three states are kept apart on purpose:
+ *  - `valid`   → configured; do not re-prompt.
+ *  - `expired` → NOT configured; this is the case that used to be silently skipped.
+ *  - `unknown` → an API-key provider carries no expiry at all, and treating "no expiry recorded"
+ *                as expired would re-prompt every single run for every keyed provider. Absence of
+ *                a measurement is not a measurement of failure.
+ */
+function hasModelCredential(
+	tokens: Record<string, unknown>,
+	env: NodeJS.ProcessEnv,
+	now: number = Date.now(),
+): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
-	return hasUsableModelCredential(provider, tokens, env);
+	if (!hasUsableModelCredential(provider, tokens, env)) return false;
+	return credentialLifetime(provider, tokens as ModelTokens, now).state !== "expired";
 }
 
 function isPromptCancelledError(error: unknown): boolean {
@@ -54,10 +88,26 @@ function isPromptCancelledError(error: unknown): boolean {
 
 interface SowOptions {
 	model?: string;
+	/**
+	 * A MODEL provider id, not a credential provider id.
+	 *
+	 * Named `modelProvider` rather than `provider` because `sow` already selects among CREDENTIAL
+	 * providers (`--github`, `--cloudflare`, model by default) and a future one — Telegram, an ERP,
+	 * a corporate SSO — will want the bare word. See `model-provider-selection.ts`.
+	 */
+	modelProvider?: string;
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
 	reconfigure?: boolean;
+	/**
+	 * The operator's name for the account being added.
+	 *
+	 * Aliases are unique per provider and mean NOTHING to code (D1); absent, the contract picks a
+	 * free one. This exists so the operator can say "corporativa" at login time rather than renaming
+	 * afterwards.
+	 */
+	alias?: string;
 	json?: boolean;
 }
 
@@ -69,6 +119,7 @@ interface SowSilo {
 
 export interface SowDeps {
 	createSilo(): SowSilo;
+	homeOf(): string;
 	createOperator(): ReturnType<typeof createStdioOperatorChannel>;
 	env(): NodeJS.ProcessEnv;
 	tryOpenUrl: typeof tryOpenUrl;
@@ -82,6 +133,8 @@ export interface SowDeps {
 function defaultSowDeps(): SowDeps {
 	return {
 		createSilo: () => new SiloCore(),
+		// The DECLARED home (ISS-139): the account store lives under it, not under $HOME.
+		homeOf: () => resolveRefarmHome(),
 		createOperator: createStdioOperatorChannel,
 		env: () => process.env,
 		tryOpenUrl,
@@ -91,6 +144,37 @@ function defaultSowDeps(): SowDeps {
 			cloudflare: cloudflareCredentialProvider,
 		},
 	};
+}
+
+/**
+ * PURE. What a login must write beside a provider, so the route stays COHERENT.
+ *
+ * A MODEL ID IS NOT PORTABLE ACROSS PROVIDERS, and a pinned one survives the change of the thing it
+ * was pinned to. Measured on the operator's node 2026-08-17: re-authenticating GitHub Copilot wrote
+ * `modelProvider: github-copilot` and left `modelId: gpt-5.5` — openai-codex's model — so the route
+ * became `github-copilot/gpt-5.5` and Copilot's own API refused it:
+ *
+ *     HTTP 400  model "gpt-5.5" is not accessible via the /chat/completions endpoint
+ *
+ * The scoped routes were right the whole time because they are DERIVED. Only the pinned value was
+ * wrong, which is the shape worth remembering: derived values follow their owner, pinned ones do
+ * not, and a pin outlives whatever it was pinned to unless something re-derives it.
+ *
+ * UNCHANGED PROVIDER TOUCHES NOTHING. A re-login of the same provider must not silently replace a
+ * model the operator chose — the pin is only stale when its owner moved.
+ */
+export function modelIdForProviderChange(
+	previousProvider: string | undefined,
+	nextProvider: string | undefined,
+	pinnedModelId: string | undefined,
+): string | undefined {
+	if (!nextProvider) return undefined;
+	const previous = stringValue(previousProvider)?.toLowerCase();
+	if (previous === nextProvider.trim().toLowerCase()) return undefined;
+	// No pin to invalidate: the route already derives, and writing one would PIN something the
+	// operator never chose.
+	if (!stringValue(pinnedModelId)) return undefined;
+	return defaultModelForProvider(nextProvider);
 }
 
 function credentialSummary(tokens: Record<string, unknown>, env: NodeJS.ProcessEnv) {
@@ -108,7 +192,12 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 		.option("--github", "Configure GitHub credentials")
 		.option("--cloudflare", "Configure Cloudflare credentials")
 		.option("--all", "Configure or reconfigure all credentials")
+		.option(
+			"--model-provider <id>",
+			"Configure this model provider directly, skipping the picker (e.g. openai-codex)",
+		)
 		.option("--reconfigure", "Reconfigure model credentials even if already configured")
+		.option("--alias <name>", "Name this account (unique per provider; renameable later)")
 		.option("--json", "Output machine-readable sow result")
 		.addHelpText("after", SOW_HELP_TEXT)
 		.action(async (opts: SowOptions) => {
@@ -121,6 +210,35 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					tryOpenUrl: deps.tryOpenUrl,
 					operator: deps.createOperator(),
 				};
+				// VALIDATED BEFORE ANYTHING IS TOUCHED, and rendered through the same envelope as the
+				// other option errors. `collectModel` also refuses a bad value, but by then the wizard
+				// has printed a banner and the refusal would arrive as an unhandled stack trace — an
+				// operator who mistyped a provider deserves the list of valid ones, not a backtrace.
+				if (opts.modelProvider !== undefined) {
+					const refusal = formatSelectionRefusal(
+						resolveModelProviderSelection(opts.modelProvider, modelProviderInventories()),
+					);
+					if (refusal) {
+						if (opts.json) {
+							printJson(
+								buildJsonErrorEnvelope({
+									command: "sow",
+									operation: "credentials",
+									error: "unusable-model-provider",
+									message: refusal,
+									nextAction: MODEL_PROVIDERS_JSON_COMMAND,
+									nextCommand: MODEL_PROVIDERS_JSON_COMMAND,
+									extra: { action: "sow" },
+								}),
+							);
+							process.exitCode = 1;
+							return;
+						}
+						console.error(chalk.red(`✗  ${refusal}`));
+						process.exitCode = 1;
+						return;
+					}
+				}
 				const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 				let modelRef = initialModelRef;
 				if (opts.model !== undefined && !initialModelRef) {
@@ -173,9 +291,22 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				const needsModel = !hasModelCredential(stored, env);
+				// Named separately from `needsModel` because the two arrive at the same decision from
+				// opposite facts, and the operator deserves to know which one they are looking at: a
+				// node that never had a credential, or one whose credential quietly died.
+				const modelCredentialExpired =
+					credentialLifetime(stringValue(stored.modelProvider), stored as ModelTokens, Date.now())
+						.state === "expired";
 				const configureModelRef = modelRef !== null;
+				// NAMING A PROVIDER IS ASKING FOR IT. Without this, `sow --model-provider openai-codex`
+				// on a node that already has a credential would print "already configured — skipped"
+				// and ignore the operator's explicit instruction, which is the same defect as the
+				// expired-credential skip one commit earlier: an instruction read as a question.
 				const configureModel =
-					Boolean(opts.reconfigure) || (needsModel && !configureModelRef) || Boolean(opts.all);
+					Boolean(opts.reconfigure) ||
+					Boolean(opts.modelProvider) ||
+					(needsModel && !configureModelRef) ||
+					Boolean(opts.all);
 				const configureGithub = Boolean(opts.github) || Boolean(opts.all);
 				const configureCloudflare = Boolean(opts.cloudflare) || Boolean(opts.all);
 
@@ -251,37 +382,134 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				if (configureModel) {
-					if (!needsModel) {
+					// THE "this replaces the LIVE credential" WARNING WAS REMOVED HERE, and removing it is
+					// the point rather than an omission.
+					//
+					// It was written for a store with one slot per provider, where authenticating did
+					// destroy whatever was there. Two things stopped being true on 2026-08-14: the write
+					// is keyed by ACCOUNT and only retires the legacy entry of the SAME provider, so
+					// nothing else is touched — and the warning read `stored.modelProvider`, the
+					// operator's ACTIVE provider, not the one he was logging into. Reported live while
+					// he was adding github-copilot, it named openai-codex and told him a working
+					// credential was about to be destroyed. Neither half was true, and a false warning
+					// on a safe operation is worse than none: it teaches the operator to abort.
+					//
+					// What actually happens is reported AFTER the write, from the catalog, where it can
+					// be counted instead of guessed.
+					if (modelCredentialExpired) {
+						console.log(
+							chalk.yellow(
+								`  Model: the stored ${stringValue(stored.modelProvider)} credential has EXPIRED — logging in again`,
+							),
+						);
+					} else if (!needsModel) {
 						console.log(
 							chalk.dim(`  Model: reconfiguring (was: ${stringValue(stored.modelProvider)})`),
 						);
 					}
-					const credential = await deps.providers.model.collectModel(ctx);
+					const credential = await deps.providers.model.collectModel(ctx, {
+						...(opts.modelProvider ? { modelProvider: opts.modelProvider } : {}),
+					});
 
 					if (credential.oauthCredentials) {
 						const modelProvider =
 							OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
-						const existingTokens = (await silo.loadTokens()) as Record<string, unknown>;
+						// THE WRITE MOVED, and with it ISS-122's last half. The secret goes to the silo's
+						// `model` namespace under an opaque id and the descriptor to the catalog, so a
+						// second account of one provider lands beside the first instead of on top of it.
+						// The same act retires this provider's legacy flat entry, which is what stops a
+						// re-login from producing two accounts for one credential.
+						//
+						// THE INTERIM REFUSAL IS GONE (73692b05), and this is the commit that earns it:
+						// it refused a different-account login because the write destroyed the stored one.
+						// The write no longer can. A warning kept past its cause is how warnings stop
+						// being read.
+						const written = await writeModelCredential({
+							home: deps.homeOf(),
+							silo: silo as AccountWriteSilo,
+							provider: credential.provider,
+							credentials: credential.oauthCredentials as unknown as Record<string, unknown>,
+							...(opts.alias ? { alias: opts.alias } : {}),
+						});
+						if (written.refusal || !written.descriptor) {
+							emitCommandRefusal({
+								command: "sow",
+								operation: "credentials",
+								options: opts,
+								error: "sow-cannot-store-namespaced-credential",
+								message: written.refusal ?? "the credential could not be stored",
+								nextAction: "Update refarm so its credential store can hold namespaced secrets.",
+								nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+							});
+							return;
+						}
+						const siblings = readCatalog(deps.homeOf()).filter(
+							(entry) => entry.provider === credential.provider,
+						);
+						// THE OBLIGATION IS BORN HERE. A credential that expires needs something to
+						// renew it, and leaving the operator to discover that later — from an
+						// advisory, or from the node stopping — puts a gap where none is needed.
+						// Renewal is not a new capability: authorising this node to hold a GitHub
+						// credential authorised it to speak to GitHub as him. Installing a
+						// supervisor unit IS a system change, so this PROPOSES through the same
+						// consent journey `process add` walks, and a decline is remembered.
+						await offerRenewalDeclaration(credential.provider, deps.homeOf());
+
+						if (siblings.length > 1) {
+							// INFORMATION, not a warning about loss. Which account his work spends is now a
+							// question he has to answer, and a dispatch with none bound refuses rather than
+							// choosing.
+							console.log(
+								chalk.yellow(
+									`  This is account ${siblings.length} of ${siblings.length} for ${credential.provider} ("${written.descriptor.alias}"). Bind one to a workspace, or a dispatch will refuse as ambiguous: refarm credential list`,
+								),
+							);
+						}
+						if (written.migratedFromLegacy) {
+							console.log(
+								chalk.dim(`  Migrated the previous ${credential.provider} credential out of the flat store.`),
+							);
+						}
+						// SAID OUT LOUD. The write computes this reason precisely so that keeping a
+						// credential is not a silent outcome — its own field doc says "Silence here would
+						// repeat ISS-128 quietly" — and nothing printed it. A node that kept a second
+						// credential without saying so is a node whose next dispatch refuses as ambiguous
+						// for a reason the operator was never told.
+						if (written.legacyKept) {
+							console.log(chalk.yellow(`  ${written.legacyKept}`));
+						}
+						// THE PIN FOLLOWS ITS OWNER (ISS-144): a model id belonging to the provider we
+						// are leaving must not survive the move, or the route names a model the new
+						// provider does not serve.
+						const rederivedModelId = modelIdForProviderChange(
+							stringValue(currentTokens.modelProvider),
+							modelProvider,
+							stringValue(currentTokens.modelId),
+						);
 						const tokenUpdate = {
 							modelProvider,
 							oauthProvider: credential.provider,
-							oauthCredentials: {
-								...(existingTokens.oauthCredentials ?? {}),
-								[credential.provider]: credential.oauthCredentials,
-							},
+							...(rederivedModelId ? { modelId: rederivedModelId } : {}),
 						};
 						await silo.saveTokens(tokenUpdate);
 						currentTokens = { ...currentTokens, ...tokenUpdate };
 					} else {
+						// Same rule on the API-key branch: the provider changes here too.
+						const rederivedApiModelId = modelIdForProviderChange(
+							stringValue(currentTokens.modelProvider),
+							credential.provider,
+							stringValue(currentTokens.modelId),
+						);
 						const tokenUpdate = {
 							modelProvider: credential.provider,
 							...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
+							...(rederivedApiModelId ? { modelId: rederivedApiModelId } : {}),
 							oauthProvider: undefined,
 						};
 						await silo.saveTokens(tokenUpdate);
 						currentTokens = { ...currentTokens, ...tokenUpdate };
 					}
-				} else if (!configureModelRef) {
+				} else if (!configureModelRef && !configureGithub && !configureCloudflare) {
 					console.log(
 						chalk.dim(
 							`  Model: already configured (${stringValue(stored.modelProvider)}) — skipped`,
@@ -375,3 +603,41 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 }
 
 export const sowCommand = createSowCommand();
+
+
+/**
+ * Offer the renewal declaration, once, right after an expiring credential is stored.
+ *
+ * NEVER THROWS and never blocks the credential that was just saved: a proposal that fails must
+ * not undo work the operator already authorised. The health advisory remains the safety net for
+ * anything this path misses.
+ */
+async function offerRenewalDeclaration(provider: string, home: string): Promise<void> {
+	try {
+		const { proposeRenewal } = await import("../credentials/propose-renewal.js");
+		const nodeFs = await import("node:fs");
+		const nodePath = await import("node:path");
+		const config = JSON.parse(
+			nodeFs.default.readFileSync(nodePath.default.join(home, "config.json"), "utf-8"),
+		) as { processes?: Record<string, { command?: string[] | string }> };
+		const declared = Object.entries(config.processes ?? {}).map(([name, value]) => ({
+			name,
+			...(value?.command !== undefined ? { command: value.command } : {}),
+		}));
+		const proposal = proposeRenewal(provider, declared, process.argv[1] ?? "");
+		if (proposal.kind !== "propose") return;
+
+		const { runProcessAdd } = await import("./process-add.js");
+		await runProcessAdd({
+			name: proposal.name,
+			description: proposal.description,
+			command: proposal.command,
+			everySeconds: String(proposal.everySeconds),
+			workingDirectory: home,
+			restart: "on-failure",
+		});
+	} catch {
+		// The advisory in `refarm health` still says it. A failed proposal is a missed
+		// convenience, never a lost credential.
+	}
+}

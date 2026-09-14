@@ -28,6 +28,17 @@ export type ProviderProbeReason =
 	| "credential-missing"
 	/** Non-ollama provider with no TS-resolvable base URL — the runtime probe fills this. */
 	| "no-endpoint-source"
+	/**
+	 * The configured endpoint is not a URL at all — a MALFORMED ROUTE, not a network fault.
+	 *
+	 * Its own state because the difference decides where an operator looks. Measured 2026-08-12:
+	 * this node's model route held `__refarm_ancestor_option_probe__` — a conformance test's
+	 * sentinel written into the silo — and `model doctor` reported `unreachable` with
+	 * `ERR_INVALID_URL` buried in the error string. The evidence was there and the VERDICT sent the
+	 * reader to debug a network that was fine. A route that cannot be parsed cannot be pinged, and
+	 * saying so is the difference between "check your connection" and "check your configuration".
+	 */
+	| "endpoint-malformed"
 	/** Not applicable / not probed. */
 	| "skipped";
 

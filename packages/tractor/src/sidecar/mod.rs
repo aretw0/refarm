@@ -1,6 +1,12 @@
 //! HTTP sidecar — implements the ADR-060 effort protocol on top of TractorNative.
 //!
-//! Binds on the configured host and port (`127.0.0.1:42001` by default) and exposes:
+//! Binds on the host its `surfaces.sidecar-http` declaration resolves to (`127.0.0.1:42001`
+//! when nothing is declared) — and, when that host is NOT loopback, on `127.0.0.1` as well,
+//! ungated: the node is not a remote device and does not authenticate to itself. See
+//! `node_local` for the rule, why the credential layer is chosen per LISTENER rather than
+//! per request, and the regression that made the invariant explicit.
+//!
+//! Exposes:
 //!   POST   /efforts                    — submit effort, returns { effortId }
 //!   GET    /efforts                    — list effort results
 //!   GET    /efforts/summary            — aggregate summary
@@ -10,8 +16,14 @@
 //!   POST   /efforts/:id/cancel         — cancel
 //!   GET    /nodes?type=:type           — list graph nodes by type
 //!   GET    /nodes/:id                  — graph node by id
-//!   GET    /plugins                    — installed/loaded plugin state
+//!   GET    /plugins                    — requested/loaded plugin state (host-observed only)
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
+//!   GET    /connections                — every declared connection's registry state
+//!   POST   /connections/:name/up       — ensure a declared connection (owner refarm/operator)
+//!   POST   /connections/:name/down     — explicit operator stop
+//!   POST   /prompts                    — publish a question and WAIT for it (long-poll)
+//!   GET    /prompts                    — questions still waiting + the stated poll interval
+//!   POST   /prompts/:id/answer         — settle one; first answer wins, attribution is the gate's
 //!   GET    /stream/activity            — live SSE of process:* / agent:* activity
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
@@ -21,6 +33,9 @@
 use std::{
     collections::HashMap,
     fs,
+    // `axum::serve(..)` is `IntoFuture`, not `Future`: with more than one listener the
+    // futures must be materialized and joined rather than `.await`ed in sequence.
+    future::IntoFuture,
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
@@ -37,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
 
-use crate::PluginChannels;
+use crate::{PluginChannels, PluginGrantFacts, PluginLoadOutcome, RequestedPluginEntry};
 
 // ── effort store ─────────────────────────────────────────────────────────────
 
@@ -117,6 +132,67 @@ pub struct Effort {
     pub tasks: Vec<EffortTask>,
     pub source: Option<String>,
     pub submitted_at: String,
+    /// The spawner's declared budget for this dispatch, resolved against the
+    /// node's (and eventually a workspace's) ceiling via `budget::resolve_budget`.
+    /// Absent when the caller declares nothing — resolution then falls back to
+    /// the node's env-backed defaults, unchanged from today's behaviour.
+    /// `BudgetDeclaration` stays `pub(crate)` (it is a wire-boundary type shared
+    /// with `budget::resolve_budget`, never constructed by an external crate) —
+    /// `Effort`'s OWN fields are `pub` for uniformity with its siblings, which is
+    /// what clippy's `private_interfaces` is flagging here; the field is still
+    /// only reachable within this crate via `Effort`, matching the type it holds.
+    #[allow(private_interfaces)]
+    #[serde(default)]
+    pub budget: Option<crate::sidecar::budget::BudgetDeclaration>,
+    /// The workspace this effort was dispatched from, carried explicitly rather
+    /// than parsed back out of the effort/operation id at a second call site —
+    /// two consumers need it (Task 7's `refarm.workspace.id` label, and a later
+    /// per-workspace auth policy resolving through the same fold), and inferring
+    /// it twice is how they would drift apart. A dispatch with no workspace sends
+    /// `None`, never `""`.
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    /// HOW that workspace was decided — `"declared"` when a human named it, anything else
+    /// (today only `"seeded-from-cwd"`) when it was inferred from a directory.
+    ///
+    /// Both or neither, the same pair rule the Session node writes them with. It rides beside
+    /// the id rather than being looked up because the two consumers that need it are the budget
+    /// fold and the observation, and only the caller knows which it was: by the time either
+    /// reads the id, a seed and a declaration are the same string.
+    ///
+    /// ADR-094 H2 makes the distinction load-bearing — a cwd seed is not policy truth — and
+    /// without this field it was not merely unrecorded, it was UNKNOWABLE downstream, so a
+    /// directory that happened to look like a workspace selected that workspace's spending
+    /// ceiling exactly as the operator naming it would (ISS-058).
+    #[serde(default)]
+    pub workspace_source: Option<String>,
+    /// The scenario this dispatch DECLARES itself to be an instance of — the
+    /// caller's claim that this run and other runs bearing the same id are the
+    /// same task and may be compared (`refarm dispatch --scenario <id>`).
+    /// Declared, never invented: a dispatch that names none sends no field at
+    /// all and the observation records no `refarm.scenario.id`, rather than a
+    /// null or an id derived from something else. See `sidecar::scenario` for
+    /// why this is a different kind of thing from the hash that rides beside it.
+    #[serde(default)]
+    pub scenario_id: Option<String>,
+    /// WHICH ACCOUNT this dispatch spends — the opaque credential id the caller's workspace
+    /// binding resolved to. Declared like `workspace_id`, never inferred: only the caller knows
+    /// which binding applied, and by the time the observation reads it a re-derivation could
+    /// disagree with what actually paid. A dispatch with no resolved account sends `None`.
+    #[serde(default)]
+    pub credential_id: Option<String>,
+    /// What the caller DECLARES this run's answer must contain, so the record
+    /// can say the run was WRONG (`refarm ask --expect <text>`) — a question
+    /// `refarm.outcome` does not answer and was never asking: `done` means the
+    /// effort COMPLETED, and on 2026-08-05 a run that answered 58 where the
+    /// answer was 59 recorded exactly that, correctly, with nothing beside it.
+    /// Declared, never invented, exactly like `scenario_id` above: a dispatch
+    /// that expects nothing sends no field at all and the observation records no
+    /// verdict, which is the ordinary case and stays the default. See
+    /// `sidecar::verification` for the three states, the one matcher, and what
+    /// a substring match cannot grade.
+    #[serde(default)]
+    pub expectation: Option<String>,
 }
 
 type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
@@ -155,19 +231,51 @@ pub struct SidecarState {
     pub telemetry: crate::TelemetryBus,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
+    /// The sovereign dir this state was built from (`base_dir` at construction — the SAME
+    /// directory `node_descriptor::publish_for_this_process` publishes `node.json` into).
+    /// Kept verbatim, not re-derived from env at read time: `observation::write_budget_observation`
+    /// needs the EXACT directory the node's opaque id (`node_identity::load_or_create_node_id`)
+    /// lives beside, and re-deriving it from `SOVEREIGN_BASE`/`SOVEREIGN_DIR` could disagree with
+    /// this value in the one case where `--refarm-dir`'s basename differs from `SOVEREIGN_DIR` —
+    /// this field never can, because it IS what `main()` handed the descriptor publisher.
+    pub refarm_dir: PathBuf,
     pub namespace: String,
     /// Respond-watcher timeout + poll cadence, resolved from env ONCE at boot
     /// (see RespondWatchConfig). The watcher reads these off the state, not env —
     /// so tests set a short timeout by overriding the field, never set_var.
     pub respond_watch: RespondWatchConfig,
-    /// The live host, for `/plugins/reload` to invoke `reload_plugin`. Injected by
-    /// the daemon via `with_reload`; None in tests that construct the sidecar
-    /// without a running host (the reload endpoint then reports it's unavailable).
+    /// The live host, for `/plugins/reload` to invoke `reload_plugin` and for
+    /// `GET /plugins` to read `requested_plugins()` (the `--plugin` startup requests and
+    /// what became of each). Injected by the daemon via `with_reload`; None in tests that
+    /// construct the sidecar without a running host (both endpoints then degrade
+    /// honestly — reload reports unavailable, `/plugins` reports nothing requested).
     pub reload: Option<Arc<crate::TractorNative>>,
     /// The shared plugin capability registry, for the synchronous `respond` route to
     /// consult `serves_sync` (ADR-084's negotiated-sync guard) before dispatching a
     /// respond. Injected by the daemon via `with_registry`; None in tests without one.
     pub plugin_registry: Option<crate::host::PluginRegistry>,
+    /// Questions waiting for the operator, answerable from any surface that reaches this
+    /// node (`pending_prompt`). In-memory and never persisted: a pending prompt's lifetime
+    /// is its asker's open request, so nothing survives the asker — which is P1 of the
+    /// pending-prompt design, obtained by construction rather than by a reaper.
+    ///
+    /// `pub(crate)` while every other field here is `pub`: the daemon binary builds this
+    /// state through `new()` and never names the hub, and a hub reachable from outside the
+    /// crate would be a second way to publish and settle prompts that bypasses the routes —
+    /// which is exactly where the gate-resolved attribution lives.
+    pub(crate) prompts: pending_prompt::PromptHub,
+    /// The spawn ceiling for remote initiation (R4) — at most one started operation and one
+    /// catalog read, ever. `pub(crate)` for the same reason `prompts` is: a ceiling reachable
+    /// from outside the crate would be a second way to spawn that bypasses the routes, which
+    /// is exactly where the bound lives.
+    pub(crate) remote_initiations: remote_initiation::RemoteInitiations,
+    /// Whether this node still accepts NEW efforts. Open for the whole of a
+    /// normal life and closed exactly once, by the shutdown drain, so a restart
+    /// stops admitting work before it starts waiting for the work already
+    /// admitted. `pub(crate)` for the same reason `prompts` is: a gate reachable
+    /// from outside the crate would be a second way to stop this node accepting
+    /// work, bypassing the drain that is the only thing entitled to close it.
+    pub(crate) drain_gate: drain::DrainGate,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -226,10 +334,14 @@ impl SidecarState {
             telemetry,
             streams_dir,
             results_dir,
+            refarm_dir: base_dir.to_path_buf(),
             namespace,
             respond_watch: RespondWatchConfig::from_env(),
             reload: None,
             plugin_registry: None,
+            prompts: pending_prompt::PromptHub::new(),
+            remote_initiations: remote_initiation::RemoteInitiations::new(),
+            drain_gate: drain::DrainGate::default(),
         })
     }
 
@@ -421,6 +533,72 @@ fn now_iso8601() -> String {
     crate::timefmt::now_iso_millis()
 }
 
+/// PURE. The plugins answer, built from the two facts the host actually holds.
+///
+/// It reports `requested` (the `--plugin` paths it was handed, each with whether it became a
+/// channel and, when it did not, why) and `loaded`. It does NOT report `installed` or `known`:
+/// the daemon receives explicit paths and does not scan, so those are the CLI's to answer and
+/// the host answering them was the defect — one variable served under four names.
+///
+/// Two absences this function is careful not to spell as a present value:
+/// - `defaultResponder` is `Option<&str>`, emitted as JSON `null` when `None` — "nobody
+///   elected" must not read the same as an elected responder named `""`.
+/// - `requested[].id` is `null` for a request that never loaded. It is NEVER derived from
+///   `path` (e.g. a file stem): production plugins are all installed as
+///   `.../refarm_<name>/plugin.wasm`, so every real path's stem is the SAME string,
+///   `"plugin"` — a stem-derived id would collide across every entry. A wrong id is worse
+///   than an absent one.
+fn plugins_payload(
+    requested: &[RequestedPluginEntry],
+    loaded: &[String],
+    default_responder: Option<&str>,
+    grants: &std::collections::HashMap<String, PluginGrantFacts>,
+) -> serde_json::Value {
+    let rows: Vec<serde_json::Value> = requested
+        .iter()
+        .map(|(path, outcome)| {
+            let (id, is_loaded, because) = match outcome {
+                PluginLoadOutcome::Loaded(id) => {
+                    (serde_json::Value::String(id.clone()), true, serde_json::Value::Null)
+                }
+                PluginLoadOutcome::Failed(reason) => {
+                    (serde_json::Value::Null, false, serde_json::Value::String(reason.clone()))
+                }
+            };
+            serde_json::json!({
+                "id": id,
+                "path": path.to_string_lossy(),
+                "loaded": is_loaded,
+                "because": because,
+            })
+        })
+        .collect();
+    // ISS-171. Reported from what the LOAD decided, never recomputed here — a second reader of
+    // this rule would be free to drift from the one that decides. A plugin the host never loaded
+    // has NO row rather than an empty one: an empty `effective` would read as "everything was
+    // withheld", while absence reads as "this host never computed one", which is the true fact.
+    let grant_rows: serde_json::Map<String, serde_json::Value> = grants
+        .iter()
+        .map(|(id, facts)| {
+            (
+                id.clone(),
+                serde_json::json!({
+                    "declared": facts.declared.iter().collect::<Vec<_>>(),
+                    "effective": facts.effective.iter().collect::<Vec<_>>(),
+                    "underDevelopment": facts.under_development,
+                }),
+            )
+        })
+        .collect();
+
+    serde_json::json!({
+        "requested": rows,
+        "loaded": loaded,
+        "defaultResponder": default_responder,
+        "grants": grant_rows,
+    })
+}
+
 async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
     let loaded: Vec<String> = {
         let channels = state.plugin_channels.read().expect("channels poisoned");
@@ -433,14 +611,31 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         .read()
         .expect("default_responder_id poisoned")
         .clone();
+    // `requested` can only come from the live host's record of its `--plugin` startup
+    // arguments (see `TractorNative::requested_plugins`) — the host never scans, so there
+    // is no other source. Without a live host wired (a sidecar built for a test via
+    // `SidecarState::for_test`, no `with_reload`), it degrades to empty rather than
+    // guessing: the same honesty `/plugins/reload` already applies when unwired.
+    let requested: Vec<RequestedPluginEntry> = state
+        .reload
+        .as_ref()
+        .map(|host| host.requested_plugins())
+        .unwrap_or_default();
 
-    Json(serde_json::json!({
-        "installed": loaded,
-        "loaded": loaded,
-        "local": [],
-        "known": loaded,
-        "defaultResponder": default_responder,
-    }))
+    // Same honesty as `requested`: the grant facts exist only where a live host decided them, and
+    // an unwired sidecar degrades to empty rather than guessing at an intersection it never made.
+    let grants = state
+        .reload
+        .as_ref()
+        .map(|host| host.plugin_grants())
+        .unwrap_or_default();
+
+    Json(plugins_payload(
+        &requested,
+        &loaded,
+        default_responder.as_deref(),
+        &grants,
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -661,7 +856,47 @@ pub async fn post_plugin_respond(
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
-mod auth;
+// `auth` is the sidecar's per-device credential policy. It was briefly `pub(crate)` so the
+// WS bind guard could read "is a policy configured", and that WAS the wrong question at
+// the time: the WS listener had no middleware, so a configured-but-unenforced policy is
+// not permission (see `bind_guard`'s module doc) — the guard narrowed back to a private
+// `auth`, refusing every non-loopback WS bind unconditionally.
+//
+// ADR-093 changes what is being asked. `daemon::ws_server` now REALLY authenticates the
+// `Sec-WebSocket-Protocol` handshake against this SAME policy (`AuthPolicy::authenticate`,
+// the same file, the same sha256 matching) — not a presence peek, an actual gate. That is
+// the right question, so `auth` widens to `pub(crate)` for it. The bind guard's OWN "is a
+// policy resolvable" bool still comes from `auth::auth_policy_configured()` — a cheap,
+// non-authoritative peek (no file I/O, no log line) — never from resolving the full
+// policy twice; see that function's doc comment for why the two stay distinct.
+pub(crate) mod auth;
+// `AuthPolicySource` (the refarm dir + "does the declaration name a device-token gate") and
+// `ResolvedAuthPolicy` (what resolving it ONCE produced) are what must cross the
+// library/binary crate boundary: `main.rs` knows both source facts at boot, resolves exactly
+// once, and threads the ANSWER into both gates, exactly as it threads `SurfaceDeclaration`.
+// `AuthPolicy` itself deliberately stays `pub(crate)`, and `ResolvedAuthPolicy`'s field is
+// private — the SOURCE and the opaque ANSWER travel, the credentials never do.
+pub use auth::{AuthPolicySource, ResolvedAuthPolicy};
+pub(crate) mod bind_guard;
+pub(crate) mod tailnet_resolve;
+// The general "a node reaches itself" rule: a surface whose RESOLVED exposure is
+// non-loopback ALSO listens on `127.0.0.1`, and the credential layer is chosen per
+// LISTENER — never per request. `pub(crate)` because `daemon::ws_server` builds its own
+// listen plan from the same rule; nothing about it is sidecar-specific.
+pub(crate) mod node_local;
+// The pending prompt: a question a blocked command is waiting on, listed and settled over
+// this same gated surface so the operator can answer from wherever they are. `pub(crate)`
+// so the hub type can sit on `SidecarState`; the routes are mounted in `sidecar_routes`
+// alongside every other one, inside the same per-listener credential layer.
+pub(crate) mod pending_prompt;
+// Starting one of refarm's OWN wizards from a device (R4). Deliberately the dumbest module
+// here: it knows no operation, holds no table, and hands an opaque id to one fixed
+// entrypoint as one argv element. The decision lives in TypeScript, where R5 put it.
+pub(crate) mod remote_initiation;
+// Nested budget resolution (node/workspace/declared) — the Rust port of
+// @refarm.dev/budget-contract-v1's fold. `dispatch` is its first consumer
+// (the respond-watcher deadline); `Effort.budget` above is the wire boundary.
+mod budget;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -670,17 +905,91 @@ pub(crate) use dispatch::*;
 pub use dispatch::{
     AGENT_RESPONSE_CORRELATION_KEY, AGENT_RESPONSE_NODE_TYPE, AGENT_RESPONSE_TERMINAL_FIELD,
 };
+// The BudgetObservation record (Task 10 of the budget laboratory) — written from
+// `dispatch::finalise_effort`, the single place every terminal effort passes through.
+mod observation;
+// WHICH WORK a run was (`refarm.scenario.id` / `.hash`) — resolved at dispatch,
+// where the request shape exists, and read back onto the observation above.
+mod scenario;
+// WHETHER the run was right (`refarm.verification.*`) — a SEPARATE fact from
+// `refarm.outcome`, which says only that the run completed. `Effort.expectation`
+// above is its wire boundary; the verdict lands on the observation.
+mod verification;
 mod reap;
+// Safe restart: what is in flight right now (`GET /efforts/in-flight`) and the
+// bounded drain a shutdown runs over it. `pub(crate)` because `daemon::shutdown`
+// owns the drain — the signal arrives at the WS server, the efforts live here.
+pub(crate) mod drain;
 async fn post_efforts(
     State(state): State<SidecarState>,
     Json(effort): Json<Effort>,
 ) -> impl IntoResponse {
+    // A draining node takes no new work. Refused with 503, not accepted-and-lost:
+    // the drain's bound was computed from what was in flight when the signal
+    // arrived, and an effort admitted after that would either extend it or be
+    // abandoned unfinished. A caller that gets this can retry the OTHER node, or
+    // this one after the restart.
+    if !state.drain_gate.accepting() {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "node is draining for shutdown — not accepting new efforts",
+        )
+        .into_response();
+    }
     let effort_id = effort.id.clone();
     dispatch_effort(state, effort);
     (
         StatusCode::OK,
         Json(serde_json::json!({ "effortId": effort_id })),
     )
+        .into_response()
+}
+
+/// `GET /efforts/in-flight` — the fact an operator (or a scheduler) reads BEFORE
+/// deciding to restart this node: what is running, and how long each of those
+/// runs could still legitimately take.
+///
+/// `drainBoundMs` is the answer to "can I restart now?" — the longest a correct
+/// shutdown drain could need, which is the longest deadline anything in flight
+/// declared (see `drain::drain_bound_ms`). It is 0 both when nothing is in flight
+/// and when nothing in flight has a resolved deadline; `deadlineUnknown` tells
+/// those two apart, because "instant" and "unknowable" are not the same answer.
+///
+/// A store that cannot be read answers 503, never `{"count": 0}`: "nothing is
+/// running" is a claim, and this endpoint does not make claims it cannot support.
+async fn get_efforts_in_flight(State(state): State<SidecarState>) -> impl IntoResponse {
+    let Some(in_flight) = drain::in_flight_now(&state) else {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "could not read the effort store — cannot tell what is in flight",
+        )
+        .into_response();
+    };
+    let deadline_unknown = in_flight
+        .iter()
+        .filter(|effort| effort.deadline_ms.is_none())
+        .count();
+    let listed: Vec<Value> = in_flight
+        .iter()
+        .map(|effort| {
+            serde_json::json!({
+                "effortId": effort.effort_id,
+                "status": effort.status,
+                "deadlineMs": effort.deadline_ms,
+            })
+        })
+        .collect();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "draining": state.drain_gate.is_draining(),
+            "count": in_flight.len(),
+            "drainBoundMs": drain::drain_bound_ms(&in_flight),
+            "deadlineUnknown": deadline_unknown,
+            "inFlight": listed,
+        })),
+    )
+        .into_response()
 }
 
 async fn get_efforts(State(state): State<SidecarState>) -> impl IntoResponse {
@@ -784,6 +1093,15 @@ async fn post_effort_retry(
         let store = state.efforts.read().expect("effort store poisoned");
         store.get(&id).map(|e| e.status.clone())
     };
+    // A retry is a NEW dispatch, so it is refused on the same grounds as a fresh
+    // submit — see `post_efforts`.
+    if !state.drain_gate.accepting() {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "node is draining for shutdown — not accepting new efforts",
+        )
+        .into_response();
+    }
     match status {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
         Some(status) if !is_terminal_effort_status(&status) => err(
@@ -1295,12 +1613,55 @@ struct NodesQuery {
     type_: Option<String>,
     #[serde(default = "default_nodes_limit")]
     limit: usize,
+    /// How many rows to skip. THE ONLY WAY PAST `MAX_NODES_PER_RESPONSE` (ISS-042): the cap
+    /// stays — an unbounded response is its own hazard — but before this, rows beyond the
+    /// hundredth were unreachable at any `limit` a caller asked for, and `truncated: true`
+    /// pointed at nothing a caller could do.
+    ///
+    /// NOT A CURSOR, deliberately. A cursor needs a sort key stable across concurrent writes,
+    /// which no adapter guarantees today and `docs/SOVEREIGN_RECORD_ORDERING.md` would have to
+    /// settle first. An offset is honest about what it is: adequate for paging a table, and
+    /// liable to skip or repeat a row if the set changes underneath the caller. Say that in the
+    /// docs rather than dressing it up.
+    #[serde(default)]
+    offset: usize,
 }
 
 fn default_nodes_limit() -> usize {
     20
 }
 
+/// The most nodes one response will carry. A ceiling is right; a SILENT ceiling is not,
+/// which is why `total` and `truncated` travel beside the rows. Before 2026-08-06 this cap
+/// was applied to an unordered query, so past 100 records of a type the API could never
+/// surface a recent one at any `limit` the caller asked for.
+const MAX_NODES_PER_RESPONSE: usize = 100;
+
+/// JSON-LD `@context` for the sovereign-runtime node family this Rust host
+/// exclusively writes — Session, RefarmConfig, UsageRecord, BudgetObservation,
+/// AgentResponse, and the rest of the internal bookkeeping types under
+/// `store_node`. Mirrors the TS host's own choice for that family
+/// (`packages/tractor-ts/src/index.ts`, `IdentityConversion`'s
+/// `"urn:sovereign:schema:v1"`) rather than the `"https://schema.org/"`
+/// default TS uses for content-shaped nodes (`HelpPage`) — this host never
+/// emits those, so one default covers every `@type` it produces.
+const DEFAULT_SOVEREIGN_CONTEXT: &str = "urn:sovereign:schema:v1";
+
+/// Build the JSON-LD node returned to callers from a stored row, filling in
+/// the transport envelope fields a bare `payload` may be missing.
+///
+/// `@context` is the JSON-LD envelope field every OTHER producer in this repo
+/// stamps (vault-contract-v1, tractor-ts, barn…) but this Rust write path
+/// never has — every `store_node` call site passes `context: None` today.
+/// Stamped HERE, at the single function both `GET /nodes` and
+/// `GET /nodes/:id` route through, rather than at each of the ~15 write call
+/// sites: that covers every node already on disk (nothing to backfill) as
+/// well as every future one, through one seam instead of many. A node that
+/// already carries its own `@context` — in `payload` (e.g. replicated in from
+/// a TS producer that embeds the full envelope) or in the `context` column
+/// (should a future write path choose to populate it) — keeps that value;
+/// `entry().or_insert_with()` never overwrites, mirroring the `@id`/`@type`
+/// precedent immediately above.
 fn node_value_from_row(row: crate::storage::NodeRow) -> Result<Value, String> {
     let mut node: Value =
         serde_json::from_str(&row.payload).map_err(|e| format!("parse node: {e}"))?;
@@ -1313,6 +1674,13 @@ fn node_value_from_row(row: crate::storage::NodeRow) -> Result<Value, String> {
     object
         .entry("@type".to_string())
         .or_insert_with(|| Value::String(row.type_));
+    object.entry("@context".to_string()).or_insert_with(|| {
+        Value::String(
+            row.context
+                .filter(|c| !c.is_empty())
+                .unwrap_or_else(|| DEFAULT_SOVEREIGN_CONTEXT.to_string()),
+        )
+    });
     Ok(node)
 }
 
@@ -1340,24 +1708,17 @@ async fn get_nodes(
         }
     };
 
-    let nodes: Vec<Value> = match storage.query_nodes(type_) {
-        Ok(rows) => {
-            let mut nodes = Vec::new();
-            for row in rows.into_iter().take(params.limit.min(100)) {
-                let node = match node_value_from_row(row) {
-                    Ok(node) => node,
-                    Err(e) => {
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(serde_json::json!({ "error": e })),
-                        )
-                            .into_response();
-                    }
-                };
-                nodes.push(node);
-            }
-            nodes
-        }
+    // The ceiling stays — an unbounded response is its own hazard — but it is applied IN
+    // SQL via `query_nodes_limited`, not by materialising every row and discarding most of
+    // them (`query_nodes(...).take(n)`, the pre-2026-08-06 shape this replaces).
+    let effective_limit = params.limit.min(MAX_NODES_PER_RESPONSE);
+
+    let rows = match storage.query_nodes_page(&crate::storage::NodePageSpec {
+        limit: Some(effective_limit),
+        offset: params.offset,
+        ..crate::storage::NodePageSpec::of(type_)
+    }) {
+        Ok(rows) => rows,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -1367,7 +1728,55 @@ async fn get_nodes(
         }
     };
 
-    Json(serde_json::json!({ "nodes": nodes, "total": nodes.len() })).into_response()
+    // `count_nodes` is a `SELECT COUNT(*)` — it never materialises the rows it counts, so
+    // stating the true total costs nothing close to what re-running `query_nodes` (every
+    // row of the type) would cost.
+    let stored = match storage.count_nodes(type_) {
+        Ok(n) => n,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("count: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let mut nodes: Vec<Value> = Vec::new();
+    for row in rows {
+        let node = match node_value_from_row(row) {
+            Ok(node) => node,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": e })),
+                )
+                    .into_response();
+            }
+        };
+        nodes.push(node);
+    }
+
+    // `total` keeps its pre-existing meaning — "rows in THIS response" — pinned by
+    // `sidecar_query_nodes_filters_by_type_and_limit`. Reusing that name for `stored` would
+    // put two different meanings under one word across this same JSON body, and the same
+    // word again in `apps/refarm/src/commands/budget.ts`'s `summary.total` (observations
+    // returned, not observations stored) — exactly the collision this shape avoids by
+    // giving the new fact ("how many exist") its own name instead.
+    // WITH AN OFFSET, "is there more" is no longer `stored > nodes.len()`. Rows before the
+    // offset were not withheld — the caller skipped them on purpose and can reach them by
+    // asking again. What `truncated` must answer is whether anything remains BEYOND this page,
+    // which is the only form of the question an operator can act on.
+    let truncated = stored > params.offset.saturating_add(nodes.len());
+
+    Json(serde_json::json!({
+        "nodes": nodes,
+        "total": nodes.len(),
+        "stored": stored,
+        "truncated": truncated,
+        "offset": params.offset,
+    }))
+    .into_response()
 }
 
 async fn get_node_by_id(
@@ -1411,6 +1820,11 @@ struct TaskQuery {
     session_id: Option<String>,
     #[serde(default = "default_task_limit")]
     limit: usize,
+    /// Same meaning and same caveats as `NodesQuery::offset`. It is here because the four
+    /// corrections below give this endpoint a `truncated` — and a `truncated: true` with no
+    /// way to reach the rest is the complaint ISS-042 already is.
+    #[serde(default)]
+    offset: usize,
 }
 
 fn default_task_limit() -> usize {
@@ -1432,7 +1846,41 @@ async fn get_tasks(
         }
     };
 
-    let rows = match storage.query_nodes("Task") {
+    // ISS-041, four defects, and the fourth was never filed. Every one of them was a pass
+    // this endpoint made over data the database could have cut once:
+    //
+    //   1. `query_nodes("Task")` read EVERY task row, at any limit.
+    //   2. a `created_at_ns` re-sort in Rust reordered the page AFTER the store had chosen
+    //      which rows the page contained — a limit taken in one order and presented in
+    //      another answers neither question.
+    //   3. nothing said the answer had been cut.
+    //   4. `total` was computed AFTER `truncate`, so it always equalled the page size. A
+    //      consumer reading it to ask "is there more" was answered "no", always. It is REMOVED
+    //      rather than redefined: a key whose meaning changes silently is worse than one that
+    //      vanishes loudly, and nothing outside this file's own tests read it.
+    //
+    // The filters move into SQL WITH the limit, never behind it. Limiting first and filtering
+    // after would let `?status=done` answer out of the newest 100 rows of any status and
+    // report zero while hundreds of done tasks existed — the global-limit-then-filter shape
+    // ISS-045 was filed for, rebuilt here in the act of fixing something else.
+    let mut filters: Vec<(&str, &str)> = Vec::new();
+    if let Some(status) = params.status.as_deref() {
+        filters.push(("status", status));
+    }
+    if let Some(session_id) = params.session_id.as_deref() {
+        filters.push(("context_id", session_id));
+    }
+
+    let effective_limit = params.limit.min(MAX_NODES_PER_RESPONSE);
+    let spec = crate::storage::NodePageSpec {
+        json_filters: &filters,
+        order_by_json_field: Some("created_at_ns"),
+        limit: Some(effective_limit),
+        offset: params.offset,
+        ..crate::storage::NodePageSpec::of("Task")
+    };
+
+    let rows = match storage.query_nodes_page(&spec) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -1443,32 +1891,51 @@ async fn get_tasks(
         }
     };
 
-    let mut tasks: Vec<Value> = rows
+    // Counted over THE SAME filters the page was taken with, so `truncated` compares two
+    // numbers measured over one set. A count taken without them would report "there is more"
+    // to a caller who had already been given everything matching their query.
+    let stored = match storage.count_nodes_matching(&spec) {
+        Ok(n) => n,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("count: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    // `json_valid(payload)` is already in the WHERE clause, so this parses everything it is
+    // given and `tasks.len() == rows.len()`. Malformed rows are excluded by the same predicate
+    // the count uses — which is what keeps the two numbers about the same set.
+    let tasks: Vec<Value> = rows
         .into_iter()
         .filter_map(|row| serde_json::from_str::<Value>(&row.payload).ok())
-        .filter(|t| {
-            params
-                .status
-                .as_deref()
-                .is_none_or(|s| t["status"].as_str() == Some(s))
-        })
-        .filter(|t| {
-            params
-                .session_id
-                .as_deref()
-                .is_none_or(|sid| t["context_id"].as_str() == Some(sid))
-        })
         .collect();
 
-    tasks.sort_by(|a, b| {
-        b["created_at_ns"]
-            .as_u64()
-            .unwrap_or(0)
-            .cmp(&a["created_at_ns"].as_u64().unwrap_or(0))
-    });
-    tasks.truncate(params.limit.min(100));
+    let truncated = stored > params.offset.saturating_add(tasks.len());
 
-    Json(serde_json::json!({ "tasks": tasks, "total": tasks.len() })).into_response()
+    Json(serde_json::json!({
+        "tasks": tasks,
+        "stored": stored,
+        "truncated": truncated,
+        "offset": params.offset,
+        // WHICH CLOCK "the newest N" MEANS (ISS-115).
+        //
+        // This endpoint orders by `created_at_ns`; the guest's `list_tasks` goes through the
+        // bridge and gets the store's `updated_at DESC`. For any Task whose status changed since
+        // creation -- the ordinary case, since a Task is created `active` and later becomes
+        // done/failed/blocked -- the two return a DIFFERENT "newest N" for identical data.
+        //
+        // Both are defensible: an operator listing tasks reasonably wants the newest by creation,
+        // an agent loading prompt context reasonably wants the most recently active. The defect
+        // was never that they differ; it was that neither said which question it answers, so a
+        // consumer comparing them saw a disagreement with nothing to attribute it to. Naming it
+        // changes no behaviour and makes any future drift a visible contradiction rather than a
+        // rediscovery.
+        "order": "created",
+    }))
+    .into_response()
 }
 
 async fn get_task(
@@ -1538,17 +2005,123 @@ async fn get_task(
     Json(serde_json::json!({ "task": task, "events": events })).into_response()
 }
 
+// ── connection handlers ──────────────────────────────────────────────────────
+//
+// The operator's own door onto the shared connection engine (the design at
+// `docs/superpowers/specs/2026-07-28-declared-connections-shared-sessions-design.md`).
+// `GET /connections` lists every DECLARED connection (a name declared but never
+// established reports `down`, never omitted); `POST .../up` ensures it under the fixed
+// owner `CONNECTION_OWNER_OPERATOR` ("refarm/operator") — a value no plugin id can ever
+// be, since it contains a `/` (see that constant's own doc) — so `release_owner` (run
+// on plugin unload) can never collect it as a side effect of plugin lifecycle;
+// `POST .../down` is the explicit
+// operator stop — sovereign even with claims outstanding, but the response REPORTS how
+// many were active rather than hiding the count (D12, "the operator is shown reality").
+//
+// All three sit BEHIND the same opt-in auth gate as every other route here — they are
+// registered on the SAME `Router` in `start()` below, inside the `auth::auth_middleware`
+// layer applied to the whole router, not on some side door around it.
+
+fn connection_operator_state_json(state: &crate::host::ConnectionOperatorState) -> Value {
+    serde_json::json!({
+        "name": state.name,
+        "status": state.status,
+        "sinceNs": state.since_ns,
+        "claims": state.claims,
+        "claim": state.claim,
+    })
+}
+
+/// `None` when the sidecar was built without a live host wired (`with_reload`) — a test
+/// sidecar, or a boot ordering issue. Reported honestly as 503, matching the other
+/// `state.reload`-gated routes (`post_plugins_reload`, `post_plugins_load_by_hash`)
+/// rather than pretending the call happened.
+fn require_live_host(
+    state: &SidecarState,
+) -> Result<&std::sync::Arc<crate::TractorNative>, Box<axum::response::Response>> {
+    state.reload.as_ref().ok_or_else(|| {
+        Box::new(
+            err(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "no live host wired; connections are unavailable",
+            )
+            .into_response(),
+        )
+    })
+}
+
+async fn get_connections(State(state): State<SidecarState>) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return *response,
+    };
+    match host.plugins.list_declared_connections(&host.sync) {
+        Ok(list) => {
+            let connections: Vec<Value> = list.iter().map(connection_operator_state_json).collect();
+            Json(serde_json::json!({ "connections": connections })).into_response()
+        }
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response(),
+    }
+}
+
+async fn post_connection_up(
+    State(state): State<SidecarState>,
+    AxumPath(name): AxumPath<String>,
+) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return *response,
+    };
+    match host.plugins.ensure_connection_as_operator(&host.sync, &name).await {
+        Ok(conn_state) => {
+            (StatusCode::OK, Json(connection_operator_state_json(&conn_state))).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Undeclared(message)) => {
+            err(StatusCode::NOT_FOUND, &message).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Failed(message)) => {
+            err(StatusCode::INTERNAL_SERVER_ERROR, &message).into_response()
+        }
+    }
+}
+
+async fn post_connection_down(
+    State(state): State<SidecarState>,
+    AxumPath(name): AxumPath<String>,
+) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return *response,
+    };
+    match host.plugins.stop_connection_as_operator(&name) {
+        Ok((conn_state, claims_active)) => {
+            let mut body = connection_operator_state_json(&conn_state);
+            body["claimsActive"] = serde_json::json!(claims_active);
+            (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Undeclared(message)) => {
+            err(StatusCode::NOT_FOUND, &message).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Failed(message)) => {
+            err(StatusCode::INTERNAL_SERVER_ERROR, &message).into_response()
+        }
+    }
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
-pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
-    // Reclaim terminal-and-old task-results/streams artifacts in the background,
-    // bounding the daemon's on-disk growth. Self-terminates when state drops.
-    // Reaper knobs resolved from env ONCE here at daemon start.
-    reap::spawn_reaper(&state, reap::ReaperConfig::from_env());
-
-    let router = Router::new()
+/// The sidecar's routes — the SHARED half of every listener, identical on all of them. A
+/// surface's routes are a property of the surface, not of which socket a request arrived
+/// on: the node-local listener serves exactly the same API as the declared one, and the
+/// only difference between the two is the credential layer `listener_router` adds (or does
+/// not add) on top. PURE: builds a value, binds nothing.
+fn sidecar_routes(state: SidecarState) -> Router {
+    Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))
         .route("/efforts/summary", get(get_efforts_summary))
+        // Static, so it wins over `/efforts/:id` — an effort may not be named
+        // "in-flight", and the router prefers the literal segment either way.
+        .route("/efforts/in-flight", get(get_efforts_in_flight))
         .route("/efforts/:id", get(get_effort))
         .route("/efforts/:id/logs", get(get_effort_logs))
         .route("/efforts/:id/retry", post(post_effort_retry))
@@ -1565,36 +2138,195 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
+        // The two routes whose required SCOPE is declared — `auth::route_requirement` names
+        // these same constants, so the path the router serves and the path the gate judges
+        // cannot drift apart by a rename. `GET` here is reachable by a `prompt:answer` scoped
+        // credential; `POST /prompts` (publishing a question) is not, and no other route is.
+        .route(
+            auth::ROUTE_PROMPTS,
+            post(pending_prompt::post_prompts).get(pending_prompt::get_prompts),
+        )
+        .route(
+            auth::ROUTE_PROMPT_ANSWER,
+            post(pending_prompt::post_prompt_answer),
+        )
+        // Stating a fact (N1). NOT named in `auth::route_requirement`, and that omission
+        // is the decision — the same one `POST /prompts` makes: publishing is the ASKER's
+        // side, so this admits device credentials only. A `prompt:answer` credential
+        // answers questions; it never puts words in the node's mouth.
+        .route("/notices", post(pending_prompt::post_notices))
+        // Remote initiation (R4). NOT named in `auth::route_requirement`, and that omission
+        // is the decision: a route declaring no scope admits device credentials only. A
+        // browser's `prompt:answer` credential answers questions; it never starts work.
+        .route(
+            remote_initiation::ROUTE_OPERATIONS,
+            post(remote_initiation::post_operations).get(remote_initiation::get_operations),
+        )
+        .route("/operations/:run_id", get(remote_initiation::get_operation))
+        .route(
+            "/operations/:run_id/cancel",
+            post(remote_initiation::post_operation_cancel),
+        )
+        .route("/connections", get(get_connections))
+        .route("/connections/:name/up", post(post_connection_up))
+        .route("/connections/:name/down", post(post_connection_down))
         .route("/stream/activity", get(activity_sse::get_stream_activity))
-        .with_state(state);
+        .with_state(state)
+}
 
-    // Opt-in per-device AUTH gate: unset REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged
-    // (fail-closed off by default). Applied INNER of CORS below, so a browser's OPTIONS
-    // preflight — which carries no credential — is answered by CORS before the gate sees it.
-    let router = match auth::auth_config_from_env() {
-        Some(policy) => router.layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(policy.clone(), req, next)
+/// The router ONE listener serves: the shared routes, plus the credential layer that
+/// listener's ROLE earns, plus CORS. THE place the per-listener authentication decision is
+/// realized, and the reason it is a named function rather than an inline block in `start`:
+/// the credential layer is attached (or not) here, once per socket, from `role` — never from
+/// anything a request carries.
+///
+/// - `node_local::gate_for(role, gate)` yields `None` for a [`node_local::ListenRole::NodeLocal`]
+///   listener whatever `gate` is, so that listener is CONSTRUCTED with no auth middleware at
+///   all. There is no code inside it that could decide to skip authentication, because there
+///   is no authentication inside it to skip.
+/// - a [`node_local::ListenRole::Declared`] listener gets exactly the layer it always got:
+///   `Some(gate)` ⇒ every request must carry a valid bearer credential (`deny_all` behind the
+///   gate ⇒ every request `401`, the strictest enforcement of a declared gate); `None` ⇒ no
+///   layer, byte-identical to a sidecar with no gate declared.
+///
+/// The auth layer goes on INNER of CORS, unchanged, so a browser's OPTIONS preflight — which
+/// carries no credential — is answered by CORS before the gate sees it. What the layer
+/// captures is the LIVE gate (an `Arc`), not a copy of the credentials: a copy would freeze
+/// the policy at boot and put enrolment — and revocation — behind a full runtime restart.
+/// See `auth::AuthGate`.
+///
+/// PURE: builds a value, binds nothing.
+fn listener_router(
+    routes: Router,
+    role: node_local::ListenRole,
+    gate: Option<auth::AuthGate>,
+    cors_policy: Option<cors::CorsPolicy>,
+) -> Router {
+    let routes = match node_local::gate_for(role, gate) {
+        Some(gate) => routes.layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(gate.clone(), req, next)
         })),
-        None => router,
+        None => routes,
     };
+    match cors_policy {
+        Some(policy) => routes.layer(axum::middleware::from_fn(move |req, next| {
+            cors::cors_middleware(policy.clone(), req, next)
+        })),
+        None => routes,
+    }
+}
+
+pub async fn start(
+    state: SidecarState,
+    // `None` means `--http-host` was not passed — under S1/S5 an absent flag is not a
+    // value at all (see main.rs's `DaemonArgs::http_host` doc comment), so the
+    // `surfaces.sidecar-http` DECLARATION decides the actual bind host below.
+    // `Some(v)` means the operator IS narrowing (or asserting) — `v` is validated
+    // against the declared ceiling, never widened past it.
+    host: Option<String>,
+    port: u16,
+    // The resolved `surfaces.sidecar-http` declaration (S1/S3/S5), read ONCE at daemon
+    // boot (`crate::host::surfaces_from_config`) and threaded in by the caller — `start`
+    // never reads `.refarm/config.json` itself, matching `auth_policy` below (resolved
+    // once, reused). `None` means undeclared, NOT "declaration permits anything" (S1).
+    declared_surface: Option<crate::host::SurfaceDeclaration>,
+    // The auth policy ALREADY RESOLVED — once, at daemon start, by main.rs — and threaded
+    // in, exactly like `declared_surface`. This function does not receive an
+    // `AuthPolicySource` and therefore CANNOT resolve one: it used to, and so did
+    // `daemon::WsServer::start`, which is why a declared-but-unenrolled gate printed its
+    // ABSENT warning twice per boot and why two gates could in principle read two different
+    // policies. See `auth::ResolvedAuthPolicy`.
+    auth_policy: auth::ResolvedAuthPolicy,
+) -> anyhow::Result<()> {
+    // Resolve `expose: "tailnet"` into a concrete `host:<ip>` BEFORE the guard ever runs
+    // — see `tailnet_resolve`'s module doc (open question 1 of the declared-surfaces
+    // design). A no-op (no `tailscale` spawn) unless `declared_surface` actually declares
+    // `tailnet` and the flag isn't already narrowing to loopback. `bind_guard` below never
+    // sees an unresolved `Tailnet` as a result.
+    let declared_surface = tailnet_resolve::resolve_declared_expose_for_bind(
+        crate::host::SURFACE_SIDECAR_HTTP,
+        "the sidecar",
+        host.as_deref(),
+        declared_surface.as_ref(),
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
+
+    // Resolve the ACTUAL bind host from the flag + declaration, and validate it in the
+    // same call — see `bind_guard::resolve_sidecar_bind_host` for the full S1/S3/S5
+    // reasoning. This is the promoted question: does the declaration PERMIT this bind
+    // (or DECIDE it, when the flag was absent), and can this surface ENFORCE what the
+    // declaration claims? Checked before anything else in `start` so a disallowed
+    // non-loopback bind never gets as far as building a router or touching a socket.
+    let host = bind_guard::resolve_sidecar_bind_host(
+        host.as_deref(),
+        auth_policy.is_gated(),
+        declared_surface.as_ref(),
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
+
+    // Reclaim terminal-and-old task-results/streams artifacts in the background,
+    // bounding the daemon's on-disk growth. Self-terminates when state drops.
+    // Reaper knobs resolved from env ONCE here at daemon start.
+    reap::spawn_reaper(&state, reap::ReaperConfig::from_env());
+
+    let router = sidecar_routes(state);
 
     // ADR-088: layer OPT-IN CORS only when REFARM_SIDECAR_CORS_ORIGINS is set. The
     // default (unset) leaves the router untouched — no CORS surface — because the
-    // supported browser path is the same-origin proxy on `refarm serve`.
-    let router = match cors::cors_config_from_env() {
-        Some(policy) => {
-            tracing::info!(?policy, "sidecar CORS enabled (opt-in)");
-            router.layer(axum::middleware::from_fn(move |req, next| {
-                cors::cors_middleware(policy.clone(), req, next)
-            }))
-        }
-        None => router,
-    };
+    // supported browser path is the same-origin proxy on `refarm serve`. Read ONCE here,
+    // then applied identically to every listener below: the CORS surface is a property of
+    // the sidecar, not of which socket a request arrived on.
+    let cors_policy = cors::cors_config_from_env();
+    if let Some(policy) = cors_policy.as_ref() {
+        tracing::info!(?policy, "sidecar CORS enabled (opt-in)");
+    }
 
-    let bind_addr = format!("{host}:{port}");
-    let listener = TcpListener::bind(&bind_addr).await?;
-    tracing::info!(host = %host, port, "HTTP sidecar listening");
-    axum::serve(listener, router).await?;
+    // The node reaches itself: a resolved host that is NOT loopback opens a second,
+    // ADDITIVE `127.0.0.1` socket alongside it — see `node_local`'s module doc for the
+    // regression this closes (`expose: "tailnet"` bound ONLY the tailnet address, so every
+    // local client, `refarm ask` first among them, reported a live runtime as down). A
+    // loopback-resolved host yields exactly one target, unchanged.
+    let plan = node_local::listen_plan(&host);
+
+    // Bind EVERY target before serving ANY of them, and treat a failure on either as fatal
+    // to the whole surface. Half-bound is the exact state this rule exists to eliminate:
+    // outward-only breaks the operator's own CLI while the daemon logs success, and
+    // local-only makes a declared surface silently absent from the address it advertises.
+    // Binding first also means a refusal leaves nothing serving — the already-bound
+    // listeners are dropped by this `?`.
+    let mut bound = Vec::with_capacity(plan.len());
+    for target in &plan {
+        let addr = format!("{}:{}", target.host, port);
+        let listener = TcpListener::bind(&addr).await.map_err(|e| {
+            anyhow::anyhow!(target.role.describe_bind_failure("the sidecar", &addr, &e.to_string()))
+        })?;
+        bound.push((listener, target.role));
+    }
+
+    // ONE line, naming every address and its role. A line naming a single host was accurate
+    // only while there was a single socket; with two, it hides exactly the fact an operator
+    // needs (which addresses answer, and which of them is gated).
+    tracing::info!(
+        addresses = %node_local::describe_listen_plan(&plan, port),
+        port,
+        "HTTP sidecar listening"
+    );
+
+    // THE authentication decision, made once per LISTENER and never per request, inside
+    // `listener_router`: the node-local socket is CONSTRUCTED without the credential layer,
+    // the declared socket with it. `auth_policy` is the value main.rs resolved at daemon
+    // start — the same value the bind guard above consulted, and the same value the WS
+    // handshake gate enforces.
+    let mut serving = Vec::with_capacity(bound.len());
+    for (listener, role) in bound {
+        let router =
+            listener_router(router.clone(), role, auth_policy.gate(), cors_policy.clone());
+        serving.push(axum::serve(listener, router).into_future());
+    }
+
+    // Serve every socket concurrently; the first failure ends the surface. There is no
+    // "keep the other listener alive" path for the same reason there is no half-bound start.
+    futures_util::future::try_join_all(serving).await?;
     Ok(())
 }
 

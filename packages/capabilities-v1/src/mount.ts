@@ -7,6 +7,8 @@ import {
 	type CapabilityEntry,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
+import { DEFAULT_BIND_HOST, refuseUnguardedNonLoopbackBind } from "@refarm.dev/std";
+import { authPolicyPresent } from "@refarm.dev/std/node";
 import { capabilityCliCommands, type CapabilityHooksResolver } from "@refarm.dev/surface-terminal";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
@@ -154,6 +156,20 @@ export function mountedHttpHandler(
  * consumer makes to serve its verbs (the twin of mounting the CLI). `port: 0` picks a
  * free port. Returns `{ server, listening, close }`.
  *
+ * BIND SAFETY (why `host` exists at all):
+ *   - This used to call `server.listen(port, cb)` with NO host, so Node bound the
+ *     unspecified address — every interface — and there was no host option anywhere in
+ *     the signature, so a consumer could not choose loopback even deliberately. Every app
+ *     built on this SDK inherited an all-interfaces listener for its verbs, which are
+ *     real work: they read vaults, write records, submit efforts.
+ *   - The default is now loopback (`DEFAULT_BIND_HOST`), and a caller who wants wider
+ *     must say so AND have an auth policy configured — the same fail-closed rule the Rust
+ *     daemon applies at its own bind (`sidecar/bind_guard.rs`), via the shared pure guard
+ *     in `@refarm.dev/std`. A refused bind REJECTS `listening` — it is not a warning, and
+ *     no socket is opened.
+ *   - `listening` resolves with the bound `host` as well as the port, so a caller can
+ *     PRINT what it actually bound rather than assume "localhost".
+ *
  * HANGING SAFETY (a serve surface must never wedge a client or the process):
  *   - Every request has a hard timeout (`requestTimeoutMs`, default 15s): if a verb's
  *     run() never resolves, the server responds 504 instead of holding the socket open
@@ -169,6 +185,11 @@ export function serveCapabilities(
 	registry: CapabilityRegistry,
 	options: {
 		port?: number;
+		/** Bind address. Defaults to loopback (`127.0.0.1`) — this surface is not exposed to
+		 * other devices unless the app asks for it. A non-loopback host REJECTS `listening`
+		 * unless `REFARM_AUTH_POLICY` names an existing policy file; see `@refarm.dev/std`'s
+		 * bind guard, shared with the Rust daemon. */
+		host?: string;
 		prefix?: string;
 		requestTimeoutMs?: number;
 		openApiPath?: string;
@@ -179,7 +200,7 @@ export function serveCapabilities(
 	} = {},
 ): {
 	server: Server;
-	listening: Promise<{ port: number }>;
+	listening: Promise<{ port: number; host: string }>;
 	close: () => Promise<void>;
 } {
 	const handler = mountedHttpHandler(registry, {
@@ -217,12 +238,27 @@ export function serveCapabilities(
 		socket.on("close", () => sockets.delete(socket));
 	});
 
-	const listening = new Promise<{ port: number }>((resolve, reject) => {
+	const host = options.host ?? DEFAULT_BIND_HOST;
+
+	const listening = new Promise<{ port: number; host: string }>((resolve, reject) => {
+		// Fail closed BEFORE the socket exists: a non-loopback bind with no auth policy
+		// configured is refused, not warned about. Rejecting the promise (rather than
+		// throwing synchronously) keeps the returned handle usable — a caller can still
+		// `await close()` in a finally — and matches how a bind EADDRINUSE surfaces here.
+		const refusal = refuseUnguardedNonLoopbackBind(
+			host,
+			authPolicyPresent(),
+			"the capability HTTP surface",
+		);
+		if (refusal) {
+			reject(new Error(refusal));
+			return;
+		}
 		server.once("error", reject);
-		server.listen(options.port ?? 0, () => {
+		server.listen(options.port ?? 0, host, () => {
 			const addr = server.address();
 			const port = typeof addr === "object" && addr ? addr.port : (options.port ?? 0);
-			resolve({ port });
+			resolve({ port, host });
 		});
 	});
 

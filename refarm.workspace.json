@@ -1,0 +1,60 @@
+{
+  "commands": {
+    "vpn-status": {
+      "run": [
+        "refarm",
+        "connection",
+        "status",
+        "--json"
+      ],
+      "description": "Estado atual da conexão declarada"
+    },
+    "vpn-prepare": {
+      "run": [
+        "node",
+        "scripts/connection-up-safe.mjs",
+        "ovpn-serpro",
+        "--prepare-only",
+        "--ready-window-ms",
+        "300000"
+      ],
+      "description": "Arma janela curta de preparo explícito do operador antes de tentar subir"
+    },
+    "vpn-ready": {
+      "run": [
+        "node",
+        "scripts/connection-up-safe.mjs",
+        "ovpn-serpro",
+        "--check-readiness-only",
+        "--ready-window-ms",
+        "300000",
+        "--cooldown-ms",
+        "900000",
+        "--json"
+      ],
+      "description": "Checa prontidão (preparo + cooldown) sem tentar subir conexão"
+    },
+    "vpn-up-safe": {
+      "run": [
+        "node",
+        "scripts/connection-up-safe.mjs",
+        "ovpn-serpro",
+        "--ready-window-ms",
+        "300000",
+        "--cooldown-ms",
+        "900000"
+      ],
+      "description": "Sobe a VPN só após preparo explícito e com cooldown anti-rajada"
+    },
+    "vpn-down": {
+      "run": [
+        "refarm",
+        "connection",
+        "down",
+        "ovpn-serpro",
+        "--json"
+      ],
+      "description": "Derruba a conexão declarada de forma soberana"
+    }
+  }
+}

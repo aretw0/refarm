@@ -1,3 +1,4 @@
+import { declaredBase } from "./declared-base.js";
 import path from "node:path";
 
 export const WORKSPACE_NAMESPACE_PERSISTENCE = Object.freeze(["versioned", "ignored", "ephemeral"]);
@@ -13,7 +14,9 @@ export function parseWorkspaceNamespaceAccess(value) {
 }
 
 export function declaredWorkspaceNamespacesFromConfig(config, options = {}) {
-	const baseDir = options.baseDir ?? process.cwd();
+	// The node base, never the cwd: these paths are declared in the NODE's config, so the
+	// same declaration must name the same directory from anywhere the command is run.
+	const baseDir = options.baseDir ?? declaredBase();
 	const namespaces = config?.workspaceNamespaces;
 	if (!namespaces || typeof namespaces !== "object" || Array.isArray(namespaces)) return [];
 

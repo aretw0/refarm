@@ -37,6 +37,24 @@ export const FORBIDDEN_PATTERNS = [
 export const FIXTURE_RE = /(^|\/)(fixtures|__fixtures__)\//;
 
 /**
+ * These four files are a deliberately versioned, zero-dependency delivery
+ * capsule. `farm-client` must run on a device that has Node but no package
+ * manager, so it carries the two blocks it executes.  This is intentionally an
+ * exact roster rather than a `vendor/**` pattern: another vendored `dist/`
+ * output is still an artifact until it earns the same source+integrity proof.
+ *
+ * `release-readiness` runs `farm-client vendor:check` immediately after this
+ * guard. That check rebuilds the canonical blocks when needed and requires the
+ * carried source, JS and source map to be byte-identical before release.
+ */
+export const INTENTIONALLY_TRACKED_VENDOR_ARTIFACTS = new Set([
+	"packages/farm-client/vendor/prompt-contract-v1/dist/index.js",
+	"packages/farm-client/vendor/prompt-contract-v1/dist/index.js.map",
+	"packages/farm-client/vendor/operation-consent-v1/dist/index.js",
+	"packages/farm-client/vendor/operation-consent-v1/dist/index.js.map",
+]);
+
+/**
  * Find tracked files that are generated artifacts.
  * @param {string[]} trackedFiles - output of `git ls-files`.
  * @returns {{file: string, label: string}[]}
@@ -45,6 +63,7 @@ export function findTrackedArtifacts(trackedFiles) {
 	const offenders = [];
 	for (const file of trackedFiles) {
 		if (FIXTURE_RE.test(file)) continue; // test fixtures are source, whatever they contain
+		if (INTENTIONALLY_TRACKED_VENDOR_ARTIFACTS.has(file)) continue;
 		for (const { label, re } of FORBIDDEN_PATTERNS) {
 			if (!re.test(file)) continue;
 			offenders.push({ file, label });

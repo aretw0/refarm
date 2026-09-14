@@ -22,6 +22,12 @@ const {
 
 vi.mock("@refarm.dev/prompt-contract-v1", () => ({
   createStdioOperatorChannel: vi.fn(() => ({ ask: mockOperatorAsk })),
+  OperatorPromptCancelledError: class OperatorPromptCancelledError extends Error {
+    constructor(message = "Operator prompt cancelled") {
+      super(message);
+      this.name = "OperatorPromptCancelledError";
+    }
+  },
 }));
 
 vi.mock("@refarm.dev/sower", () => ({
@@ -251,6 +257,22 @@ describe("initCommand — mocked initialization flow", () => {
       nextAction: "refarm init 'test-workspace' --force",
       nextCommand: "refarm init 'test-workspace' --force",
     });
+    logSpy.mockRestore();
+  });
+
+  it("exits gracefully (130, calm message, no throw) when the template prompt is cancelled", async () => {
+    const { OperatorPromptCancelledError } = await import("@refarm.dev/prompt-contract-v1");
+    mockOperatorAsk.mockRejectedValueOnce(new OperatorPromptCancelledError());
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await runInit();
+
+    expect(process.exitCode).toBe(130);
+    expect(logs.some((line) => line.includes("Cancelled"))).toBe(true);
+    expect(mockScaffold).not.toHaveBeenCalled();
     logSpy.mockRestore();
   });
 });

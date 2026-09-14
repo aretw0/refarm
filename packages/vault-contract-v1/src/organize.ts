@@ -43,25 +43,117 @@ export interface OrganizeDispatcher {
 /** Render one frontmatter value as a SINGLE YAML line — never breaking out of the `---` fence.
  * Objects/arrays become compact JSON; a scalar whose string form contains a newline (a multi-line
  * `body`, an embedded markdown field) is JSON-encoded so the newline is escaped to `\n` instead of
- * splitting the frontmatter. A plain single-line scalar renders as-is. PURE. */
+ * splitting the frontmatter. A plain single-line scalar renders as-is. PURE.
+ *
+ * See {@link blockFrontmatterLines} for the opt-in multi-line rendering of nested values. */
+/**
+ * Does this scalar change meaning when written unquoted in YAML? PURE.
+ *
+ * The dangerous case in a knowledge vault is `[[Note]]`: unquoted it is a nested flow SEQUENCE,
+ * so a wikilink silently becomes `[["Note"]]` — the value survives a diff and dies at parse. The
+ * rest are the standard indicator characters, the `: ` / ` #` separators, surrounding whitespace,
+ * and the plain scalars YAML would retype (`true`, `null`, `1.5`).
+ */
+function needsYamlQuoting(str: string): boolean {
+	if (str === "") return true;
+	if (str !== str.trim()) return true;
+	if (/[\n\r]/.test(str)) return true;
+	// Leading indicator characters: everything after this position is ordinary text.
+	if (/^[-?:,[\]{}#&*!|>'"%@`]/.test(str)) return true;
+	// `: ` opens a mapping and ` #` opens a comment, anywhere in the scalar.
+	if (str.includes(": ") || str.includes(" #")) return true;
+	// Plain scalars YAML retypes away from string.
+	if (/^(true|false|null|~|yes|no|on|off)$/i.test(str)) return true;
+	if (/^[+-]?(\d[\d_]*)(\.\d*)?([eE][+-]?\d+)?$/.test(str)) return true;
+	return false;
+}
+
 function frontmatterValue(value: unknown): string {
 	if (typeof value === "object") return JSON.stringify(value);
 	const str = String(value);
-	// A newline (or a leading YAML-significant char) would corrupt the block — quote via JSON.
-	return /[\n\r]/.test(str) ? JSON.stringify(str) : str;
+	// Numbers and booleans arrive already typed; only strings can be retyped by quoting them, so
+	// they are the only ones asked. JSON quoting is YAML-compatible double quoting.
+	if (typeof value !== "string") return str;
+	return needsYamlQuoting(str) ? JSON.stringify(str) : str;
 }
 
 /** Render a record's `fields` as a minimal YAML frontmatter block — enough for a matcher
  * that routes by frontmatter (taxonomy-route reads `tipo`/`sistema`/… from here). Every value is
  * emitted as a single line (multi-line/object values are JSON-encoded), so a field carrying
  * markdown (e.g. `body`) can never break the `---` fence. PURE. */
-function fieldsToFrontmatter(fields: Record<string, unknown>): string {
+/**
+ * Render a nested value across INDENTED YAML lines instead of one JSON line. PURE.
+ *
+ * The single-line form keeps every reason the flow form was chosen for: the key stays present for
+ * a `frontmatter-required` gate, no emitted line can break the `---` fence (a `-`-leading scalar
+ * is quoted by {@link needsYamlQuoting}), and a routing axis reading a plain string still fails to
+ * match a list. What it does not keep is readability: an invoice with fifteen line items renders
+ * as one four-thousand-character line, which parses perfectly and cannot be read.
+ *
+ * Opt-in rather than default because the reference surface's `frontmatter` extractor
+ * (`reference.ts`) parses line-by-line on the first colon, so it reads flow values and not block
+ * ones. That matcher is a demonstration — "the contract only needs one honest matcher to prove the
+ * boundary" — but a consumer round-tripping through it should not have the ground move by default.
+ */
+function blockFrontmatterLines(key: string, value: unknown, depth: number): string[] {
+	const pad = "  ".repeat(depth);
+	if (value === null) return [`${pad}${key}:`];
+	if (typeof value !== "object") return [`${pad}${key}: ${frontmatterValue(value)}`];
+	if (Array.isArray(value)) {
+		if (value.length === 0) return [`${pad}${key}: []`];
+		return [`${pad}${key}:`, ...value.flatMap((item) => blockFrontmatterItem(item, depth + 1))];
+	}
+	const entries = Object.entries(value).filter(([, v]) => v !== undefined);
+	if (entries.length === 0) return [`${pad}${key}: {}`];
+	return [
+		`${pad}${key}:`,
+		...entries.flatMap(([k, v]) => blockFrontmatterLines(k, v, depth + 1)),
+	];
+}
+
+/** One item of a block sequence. An object item carries the dash on its FIRST key and aligns the
+ * rest under it, which is the only layout YAML accepts for a map inside a sequence. PURE. */
+function blockFrontmatterItem(item: unknown, depth: number): string[] {
+	const pad = "  ".repeat(depth);
+	if (item === null || typeof item !== "object") return [`${pad}- ${frontmatterValue(item)}`];
+	// A list inside a list has no readability to gain and an ambiguous layout to lose; the flow
+	// form is honest about the scope this renderer covers.
+	if (Array.isArray(item)) return [`${pad}- ${JSON.stringify(item)}`];
+	const entries = Object.entries(item).filter(([, v]) => v !== undefined);
+	if (entries.length === 0) return [`${pad}- {}`];
+	const lines: string[] = [];
+	for (const [index, [k, v]] of entries.entries()) {
+		const rendered = blockFrontmatterLines(k, v, depth + 1);
+		if (index === 0) {
+			lines.push(`${pad}- ${rendered[0]?.trimStart() ?? ""}`, ...rendered.slice(1));
+		} else {
+			lines.push(...rendered);
+		}
+	}
+	return lines;
+}
+
+function fieldsToFrontmatter(fields: Record<string, unknown>, blockStyle = false): string {
 	const lines: string[] = ["---"];
 	for (const [key, value] of Object.entries(fields)) {
-		if (value === null || value === undefined) continue;
+		// `undefined` is absence and is skipped. `null` is a DECLARED-BUT-EMPTY field and keeps its
+		// key: this function's own contract is that "the KEY is always present (so a
+		// `frontmatter-required` gate sees it)", and dropping the line is what breaks that. In a
+		// vault whose templates declare required keys, `sessao_compra:` with no value is data —
+		// the field exists and is unfilled — and losing it silently turns a template contract
+		// violation into a materialization artifact.
+		if (value === undefined) continue;
+		if (value === null) {
+			lines.push(`${key}:`);
+			continue;
+		}
 		// The KEY is always present (so a `frontmatter-required` gate sees it); the value is a
 		// single, fence-safe line. A routing axis reads a plain string, so it simply won't match a
 		// JSON-encoded object/multiline value — forward-safe.
+		if (blockStyle && typeof value === "object") {
+			lines.push(...blockFrontmatterLines(key, value, 0));
+			continue;
+		}
 		lines.push(`${key}: ${frontmatterValue(value)}`);
 	}
 	lines.push("---", "");
@@ -74,7 +166,16 @@ function fieldsToFrontmatter(fields: Record<string, unknown>): string {
  * (the record's sections, if any). The record's own id is the note path when it has no
  * explicit path, so a plan round-trips back to the record. PURE.
  */
-export function recordToVaultNote(record: KnowledgeRecord): VaultNote {
+export interface RecordToVaultNoteOptions {
+	/** Render nested frontmatter values across indented YAML lines instead of one JSON line.
+	 * Off by default — see {@link blockFrontmatterLines} for why. */
+	blockStyle?: boolean;
+}
+
+export function recordToVaultNote(
+	record: KnowledgeRecord,
+	options: RecordToVaultNoteOptions = {},
+): VaultNote {
 	const path =
 		typeof record.fields?.path === "string" ? (record.fields.path as string) : record.id;
 	const parts = (record.sections ?? [])
@@ -89,7 +190,15 @@ export function recordToVaultNote(record: KnowledgeRecord): VaultNote {
 		parts.push(`## Rastreabilidade\n${links}`);
 	}
 	const body = parts.join("\n\n");
-	return { path, text: `${fieldsToFrontmatter(record.fields ?? {})}${body}\n` };
+	// Exatamente UMA quebra no fim, não a do corpo mais a nossa. Uma seção que já
+	// termina em `\n` produziria `\n\n`, e ao reprojetar a nota essa linha extra
+	// entra no registro: cada ida e volta acumula uma. É deriva, não perda — um
+	// portão que compare corpo com `trim()` nunca a vê, e só um ensaio de
+	// reversão a expõe.
+	return {
+		path,
+		text: `${fieldsToFrontmatter(record.fields ?? {}, options.blockStyle)}${body.replace(/\n+$/u, "")}\n`,
+	};
 }
 
 /** One organize plan tied back to the record it came from. */
@@ -233,6 +342,13 @@ export interface PlanRecordFilesOptions {
 	plans?: readonly RecordOrganizePlan[];
 	/** Override the file name for a record (else the plan's fileName, else `<slug>.md`). */
 	fileNameFor?: (record: KnowledgeRecord) => string;
+	/** Render nested frontmatter values across indented YAML lines instead of one JSON line.
+	 * Off by default — see {@link blockFrontmatterLines}. Only the FILE planner takes this:
+	 * `organizeRecords` and `searchRecords` hand their notes to the vault surface, whose
+	 * reference matcher parses frontmatter line-by-line on the first colon and reads flow, not
+	 * block. Routing and search must keep the form that matcher can read.
+	 * */
+	blockStyle?: boolean;
 }
 
 /**
@@ -248,7 +364,7 @@ export function planRecordFiles(
 ): RecordFilePlan[] {
 	const planByRecord = new Map((options.plans ?? []).map((p) => [p.recordId, p]));
 	return records.map((record) => {
-		const note = recordToVaultNote(record);
+		const note = recordToVaultNote(record, { blockStyle: options.blockStyle });
 		const plan = planByRecord.get(record.id);
 		const destination = plan?.destination ?? "";
 		const titleForName =

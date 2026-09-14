@@ -45,7 +45,17 @@ export const MODEL_PROVIDERS = [
 	"openrouter",
 ];
 export const SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex", "github-copilot"];
-export const RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex"];
+/**
+ * Subscription providers the RUNTIME can actually dispatch through — a narrower list than
+ * `SUBSCRIPTION_MODEL_PROVIDERS`, which is about how a credential is obtained.
+ *
+ * `github-copilot` joined on 2026-08-17 (ISS-141) when the adapter that makes it dispatchable
+ * landed: an endpoint arm in the guest, one in the host, the editor-identity headers Copilot
+ * refuses requests without, and the credential env var the host reads. Before that it could be
+ * logged in, listed, health-checked and quota-read, and every dispatch resolved to the localhost
+ * floor — this list is what kept `ask` from sending an operator there.
+ */
+export const RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex", "github-copilot"];
 
 export const MODEL_CREDENTIAL_ENV_KEYS = {
 	openai: "OPENAI_API_KEY",
@@ -126,12 +136,25 @@ export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv())
 	) {
 		return { state: "silo-oauth", envKey: credentialEnv, oauthProvider };
 	}
-	return { state: "missing", envKey: credentialEnv };
+	// UNRESOLVED ONLY WHERE A CREDENTIAL COULD BE ELSEWHERE, which is narrower than it first looks.
+	//
+	// Since 2026-08-14 a login writes SUBSCRIPTION credentials to the silo's `model` namespace
+	// instead of this flat map, so for those providers "nothing here" no longer means "there is
+	// none" — this function does no I/O and cannot see that store. An API-key provider is different:
+	// its key lives in `modelApiKey`, in this very map, so absence here IS absence and `missing`
+	// stays the honest answer. Widening `unresolved` to cover them would trade a false certainty for
+	// a false doubt, which is the same defect facing the other way.
+	return SUBSCRIPTION_MODEL_PROVIDERS.includes(normalizedProvider ?? "")
+		? { state: "unresolved", envKey: credentialEnv }
+		: { state: "missing", envKey: credentialEnv };
 }
 
 export function hasUsableModelCredential(provider, tokens = {}, env = defaultEnv()) {
 	const status = modelCredentialStatus(provider, tokens, env);
-	return status.state !== "missing";
+	// `unresolved` is not usable FROM HERE, which preserves every existing caller's behaviour
+	// exactly: what used to be `missing` still answers false. A caller that can consult the account
+	// catalog gets a better answer by asking the catalog, not by reinterpreting this boolean.
+	return status.state !== "missing" && status.state !== "unresolved";
 }
 
 export function hasUsableModelCredentialSource(source = {}, env = defaultEnv()) {
@@ -155,13 +178,13 @@ export function inferProviderFromModelId(modelId) {
 export function defaultModelForProvider(provider) {
 	switch (provider?.trim().toLowerCase()) {
 		case "openai":
-			return "gpt-5.5";
+			return "gpt-5.6-sol";
 		case "openai-codex":
 			return "gpt-5.5";
 		case "github-copilot":
 			return "gpt-4o";
 		case "anthropic":
-			return "claude-sonnet-4-6";
+			return "claude-sonnet-5";
 		case "groq":
 			return "llama-3.3-70b-versatile";
 		case "ollama":
@@ -177,7 +200,7 @@ export function defaultModelForProvider(provider) {
 		case "together":
 			return "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 		case "openrouter":
-			return "anthropic/claude-sonnet-4.6";
+			return "anthropic/claude-sonnet-5";
 		default:
 			return undefined;
 	}

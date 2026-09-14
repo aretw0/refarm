@@ -1,0 +1,164 @@
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { relative, resolve } from "node:path";
+
+const SEARCH_AREAS = ["docs", "specs/diagrams", "examples"];
+const SKIP_DIRECTORIES = new Set(["node_modules", "dist", "dist-web", "build", ".turbo", "coverage"]);
+const GOVERNANCE_PATH = "specs/diagrams/governance.v1.json";
+const LEGACY_DECISIONS = new Set(["replace-covered", "review-overlap", "preserve-perspective"]);
+
+function collectMermaidSources(root, directory, entries) {
+	if (!existsSync(directory)) return;
+	for (const name of readdirSync(directory).sort()) {
+		const absolutePath = resolve(directory, name);
+		const stat = statSync(absolutePath);
+		if (stat.isDirectory()) {
+			if (!name.startsWith(".") && !SKIP_DIRECTORIES.has(name)) {
+				collectMermaidSources(root, absolutePath, entries);
+			}
+		} else if (name.endsWith(".mermaid")) {
+			const source = relative(root, absolutePath).replaceAll("\\", "/");
+			const svg = source.replace(/\.mermaid$/, ".svg");
+			entries.push({ source, svg, rendered: existsSync(resolve(root, svg)) });
+		}
+	}
+}
+
+export function buildDiagramInventory({ root = process.cwd() } = {}) {
+	const resolvedRoot = resolve(root);
+	const diagrams = [];
+	for (const area of SEARCH_AREAS) {
+		collectMermaidSources(resolvedRoot, resolve(resolvedRoot, area), diagrams);
+	}
+	diagrams.sort((left, right) => left.source.localeCompare(right.source));
+	const governancePath = resolve(resolvedRoot, GOVERNANCE_PATH);
+	const governance = existsSync(governancePath)
+		? JSON.parse(readFileSync(governancePath, "utf8"))
+		: { version: 1, families: [] };
+	const governanceViolations = [];
+	const classifiedSources = new Map();
+	for (const family of governance.families) {
+		const declared = [...family.sources].sort();
+		const discovered = diagrams
+			.filter((diagram) => diagram.source.startsWith(family.sourcePrefix))
+			.map((diagram) => diagram.source)
+			.sort();
+		if (JSON.stringify(declared) !== JSON.stringify(discovered)) {
+			governanceViolations.push({
+				family: family.id,
+				type: "family-membership-drift",
+				declared,
+				discovered,
+			});
+		}
+		if (!existsSync(resolve(resolvedRoot, family.guide))) {
+			governanceViolations.push({ family: family.id, type: "missing-guide", guide: family.guide });
+		}
+		if (family.state === "legacy-frozen") {
+			const assessments = family.assessments ?? [];
+			const assessedSources = assessments.map((assessment) => assessment.source).sort();
+			if (JSON.stringify(assessedSources) !== JSON.stringify(declared)) {
+				governanceViolations.push({
+					family: family.id,
+					type: "legacy-assessment-drift",
+					declared,
+					assessed: assessedSources,
+				});
+			}
+			for (const assessment of assessments) {
+				if (!LEGACY_DECISIONS.has(assessment.decision)) {
+					governanceViolations.push({
+						family: family.id,
+						type: "invalid-legacy-decision",
+						source: assessment.source,
+						decision: assessment.decision,
+					});
+				}
+				for (const replacement of assessment.replacements ?? []) {
+					if (!diagrams.some((diagram) => diagram.source === replacement)) {
+						governanceViolations.push({
+							family: family.id,
+							type: "missing-replacement",
+							source: assessment.source,
+							replacement,
+						});
+					}
+				}
+			}
+		}
+		for (const source of family.sources) {
+			if (classifiedSources.has(source)) {
+				governanceViolations.push({ family: family.id, type: "duplicate-classification", source });
+			}
+			classifiedSources.set(source, family);
+		}
+	}
+	for (const diagram of diagrams) {
+		const family = classifiedSources.get(diagram.source);
+		diagram.family = family?.id ?? null;
+		diagram.lifecycle = family?.state ?? "unclassified";
+	}
+
+	const byArea = Object.fromEntries(SEARCH_AREAS.map((area) => [area, 0]));
+	for (const diagram of diagrams) {
+		const area = SEARCH_AREAS.find((candidate) => diagram.source === candidate || diagram.source.startsWith(`${candidate}/`));
+		if (area) byArea[area] += 1;
+	}
+	const missingRenderings = diagrams.filter((diagram) => !diagram.rendered).map((diagram) => diagram.svg);
+	const byLifecycle = {};
+	for (const diagram of diagrams) byLifecycle[diagram.lifecycle] = (byLifecycle[diagram.lifecycle] ?? 0) + 1;
+
+	return {
+		ok: missingRenderings.length === 0 && governanceViolations.length === 0,
+		summary: {
+			sources: diagrams.length,
+			rendered: diagrams.length - missingRenderings.length,
+			missing: missingRenderings.length,
+			byArea,
+			byLifecycle,
+		},
+		diagrams,
+		missingRenderings,
+		governance: {
+			path: GOVERNANCE_PATH,
+			version: governance.version,
+			assessments: governance.families.flatMap((family) => family.assessments ?? []),
+			violations: governanceViolations,
+		},
+	};
+}
+
+export function renderDiagramInventoryMarkdown(report) {
+	const rows = report.diagrams
+		.map((diagram) => `| \`${diagram.source}\` | ${diagram.lifecycle} | \`${diagram.svg}\` | ${diagram.rendered ? "yes" : "**no**"} |`)
+		.join("\n");
+	const assessmentRows = report.governance.assessments
+		.map((assessment) => `| \`${assessment.source}\` | ${assessment.question} | ${assessment.decision} | ${assessment.replacements.map((replacement) => `\`${replacement}\``).join("<br>") || "—"} |`)
+		.join("\n");
+	return `<!-- Generated by scripts/ci/check-diagram-inventory.mjs. Do not edit manually. -->
+# Diagram Inventory
+
+This inventory is derived from Mermaid sources under \`docs/\`, \`specs/diagrams/\`, and \`examples/\`.
+It checks source-to-SVG coverage without launching a browser. Semantic authority and diagram roles remain documented by their architecture guides.
+
+## Summary
+
+- Mermaid sources: ${report.summary.sources}
+- Rendered SVGs: ${report.summary.rendered}
+- Missing SVGs: ${report.summary.missing}
+- By area: docs ${report.summary.byArea.docs}, specs ${report.summary.byArea["specs/diagrams"]}, examples ${report.summary.byArea.examples}
+- Governed families: consolidation target ${report.summary.byLifecycle["consolidation-target"] ?? 0}, legacy frozen ${report.summary.byLifecycle["legacy-frozen"] ?? 0}
+- Governance violations: ${report.governance.violations.length}
+
+## Legacy Perspective Assessment
+
+| Source | Question answered | Decision | Replacement coverage |
+|---|---|---|---|
+${assessmentRows || "| — | No legacy perspectives are under assessment. | — | — |"}
+
+## Source Coverage
+
+| Mermaid source | Lifecycle | Expected SVG | Present |
+|---|---|---|---|
+${rows}
+`;
+}

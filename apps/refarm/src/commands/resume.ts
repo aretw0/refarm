@@ -1,10 +1,12 @@
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { resolveWorkspaceLedger, type LedgerWorkspace } from "@refarm.dev/cli";
 import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
 	buildOperatorResumeCommands,
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeAwaiting,
 	type OperatorResumeEnvironmentPressure,
 	type OperatorResumeModelSummary,
 	type OperatorResumeProjectSummary,
@@ -19,17 +21,33 @@ import {
 	parseProjectHandoffSummary,
 	PROJECT_HANDOFF_RELATIVE_PATH,
 } from "@refarm.dev/cli/project-handoff";
+import { declaredBase, declaredWorkspacesFromConfig, loadConfig } from "@refarm.dev/config";
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import {
+	answerStandingQuestion,
+	createFileOperationTrail,
+	summariseStandingQuestions,
+	type OperationQuestion,
+} from "@refarm.dev/operation-consent-v1";
+import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+
+import { refarmCommand } from "../brand.js";
 import {
 	agentFinishSessionFilePath,
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
 import { MODEL_CURRENT_JSON_COMMAND, MODEL_DOCTOR_JSON_COMMAND } from "./credential-handoffs.js";
-import { buildCurrentModelStatus, defaultModelDeps, type ModelTokens } from "./model.js";
+import {
+	buildCurrentModelStatus,
+	defaultModelDeps,
+	loadModelAccountCatalog,
+	type ModelAccountCatalog,
+	type ModelTokens,
+} from "./model.js";
 import { loadRecentRuntimeSessions } from "./session-history.js";
 import { readActiveSessionId } from "./session-lock.js";
 import { resolveStatusPayload, type ResolveStatusPayloadResult } from "./status.js";
@@ -52,9 +70,15 @@ export interface ResumeDeps {
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
-	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
+	/** The account catalog, so a namespaced credential is not reported as one nobody can find.
+	 *  OPTIONAL: a caller that does not supply it gets the flat map's honest "I cannot see". */
+	loadModelCatalog?(): Promise<ModelAccountCatalog | undefined>;
+	/** Takes the optional `--workspace` id: `resume` must be able to answer about a workspace the
+	 *  operator is not standing in (a phone, Termux, /tmp), and must SAY which one answered. */
+	resolveProject(workspace?: string): ProjectHandoffResolutionResult;
 	loadScheduledWork(): Promise<ProjectScheduledWorkInspection | undefined>;
 	loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined;
+	loadLedgerReads(): Record<string, LedgerReadResult>;
 }
 
 interface LoadScheduledWorkOptions {
@@ -63,10 +87,19 @@ interface LoadScheduledWorkOptions {
 }
 
 interface ResumeOptions {
+	workspace?: string;
 	json?: boolean;
 	status?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
+	/** A standing question's requestId to stop reporting. */
+	dismiss?: string;
+	dismissExpired?: boolean;
+	/** A standing question's requestId to RENDER, deciding nothing. */
+	show?: string;
+	answer?: string;
+	authorize?: boolean;
+	decline?: boolean;
 }
 
 export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
@@ -78,18 +111,36 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
-		loadProjectHandoff,
+		loadModelCatalog: loadModelAccountCatalog,
+		resolveProject,
 		loadScheduledWork,
 		loadEnvironmentPressure,
+		loadLedgerReads,
 		...deps,
 	};
 
 	return new Command("resume")
 		.description("Show the operator resume view across runtime and worker tasks")
+		.option("--workspace <id>", "Report the project block for this declared workspace instead of the current directory's")
 		.option("--json", "Print machine-readable JSON output")
 		.option("--no-status", "Skip runtime status inspection and only read local checkpoints")
 		.option("--next-action", "Print only the first recovery command and exit")
 		.option("--next-command", "Alias for --next-action")
+		.option(
+			"--dismiss <requestId>",
+			"Stop reporting a standing question — it was handled elsewhere, or no longer matters",
+		)
+		.option(
+			"--dismiss-expired",
+			"Stop reporting every question whose window has closed — nobody dismisses fourteen one at a time",
+		)
+		.option(
+			"--show <requestId>",
+			"Show exactly what a standing question would change — reads, decides nothing",
+		)
+		.option("--answer <requestId>", "Answer a standing question whose asker is gone")
+		.option("--authorize", "With --answer: yes. Applies the change the original run would have")
+		.option("--decline", "With --answer: no. Records the refusal, changes nothing")
 		.addHelpText(
 			"after",
 			`
@@ -108,6 +159,23 @@ Notes:
 `,
 		)
 		.action(async (options: ResumeOptions) => {
+			// DISMISS IS ITS OWN RUN, not a flag that also prints the view. The operator is saying
+			// one thing — stop telling me about this — and answering it with a full resume would
+			// bury the confirmation in the report they were trying to shorten.
+			// READ BEFORE DECIDE, and ahead of `--answer` so `--show X --answer X` cannot
+			// accidentally answer while the operator meant to look.
+			if (options.show) {
+				await emitResumeShow(options.show, Boolean(options.json));
+				return;
+			}
+			if (options.answer) {
+				await emitResumeAnswer(options, Boolean(options.json));
+				return;
+			}
+			if (options.dismiss || options.dismissExpired) {
+				await emitResumeDismiss(options.dismiss ?? null, Boolean(options.json), Boolean(options.dismissExpired));
+				return;
+			}
 			await emitResume(options, resolvedDeps);
 		});
 }
@@ -117,9 +185,12 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
-	const project = deps.loadProjectHandoff();
+	const projectResolution = deps.resolveProject(options.workspace);
+	const project = projectResolution.summary;
 	const scheduledWork = await deps.loadScheduledWork();
 	const environmentPressure = deps.loadEnvironmentPressure();
+	const ledger = buildLedgerSummary(deps.loadLedgerReads());
+	const ledgerNextCommands = buildLedgerNextCommands(ledger);
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions = options.status === false ? [] : await deps.loadRecentSessions();
 	const statusResult =
@@ -128,6 +199,11 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			: await deps.resolveStatusPayload({ renderer: "headless" });
 	try {
 		const status = statusResult?.json;
+		// READ ONCE. Two call sites build from this input — the JSON envelope and the human
+		// summary — and reading the trails twice would be two answers to one question, taken a
+		// moment apart. The first version patched only the envelope, so `--json` reported what
+		// was waiting and the human surface silently did not.
+		const awaitingOperator = await loadAwaitingOperator();
 		const envelope = buildOperatorResumeEnvelope({
 			status,
 			model,
@@ -139,8 +215,36 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			recentPrompts,
 			finish,
 			environmentPressure,
+			awaitingOperator,
 			handoffs: RESUME_HANDOFFS,
 		});
+
+		// A QUESTION WAITING ON THE OPERATOR GOES FIRST, ahead of the generic handoffs, because it
+		// is the only thing here that is BLOCKED on a human rather than on the node. Measured
+		// 2026-08-27: with a standing question present, this returned `issues list` as the next
+		// command and named the answer nowhere, so an agent following CLAUDE.md read the handoff,
+		// went to the source instead, found `--dismiss` first, and threw away a decision it could
+		// have carried (ISS-173).
+		//
+		// IT POINTS AT `--show`, NEVER AT `--authorize`. `nextCommands` is what an agent
+		// dispatches; putting an answer there would let it decide the operator's question for
+		// him, and the answer is the one thing a consent surface must never guess. So the handoff
+		// routes to SEEING, and the two ways to answer travel as prose in `nextActions`.
+		const awaitingNextCommands = (awaitingOperator?.outstanding ?? [])
+			.slice(0, 3)
+			.map((question) => refarmCommand(["resume", "--show", question.requestId]));
+		const nextCommands = [
+			...new Set([...awaitingNextCommands, ...envelope.nextCommands, ...ledgerNextCommands]),
+		];
+		// The two ways to answer, as PROSE, first. A human reads these; an agent dispatching
+		// `nextCommands` reaches `--show` and stops there, which is exactly where it should stop.
+		const awaitingNextActions = (awaitingOperator?.outstanding ?? [])
+			.slice(0, 3)
+			.map(
+				(question) =>
+					`Decide "${question.title}": ${refarmCommand(["resume", "--answer", question.requestId, "--authorize"])} or ${refarmCommand(["resume", "--answer", question.requestId, "--decline"])}`,
+			);
+		const nextActions = [...new Set([...awaitingNextActions, ...envelope.nextActions])];
 
 		const nextCommandMode = options.nextAction || options.nextCommand;
 		if (nextCommandMode && options.json) {
@@ -149,8 +253,8 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					command: "resume",
 					operation: "operator",
 					nextAction: envelope.nextAction,
-					nextActions: envelope.nextActions,
-					nextCommands: envelope.nextCommands,
+					nextActions,
+					nextCommands,
 					extra: {
 						nextProcesses: envelope.nextProcesses,
 					},
@@ -159,7 +263,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			return;
 		}
 		if (nextCommandMode) {
-			const [command] = envelope.nextCommands;
+			const [command] = nextCommands;
 			if (command) {
 				console.log(command);
 			}
@@ -167,7 +271,19 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		}
 
 		if (options.json) {
-			printJson(envelope);
+			printJson({
+				...envelope,
+				nextActions,
+				// ISS-092: `project` is ALWAYS present, explicitly null when nothing was read, and
+				// `projectResolution` always says which of the four states produced it. The key used to
+				// vanish, so a consumer doing `project?.currentTasks ?? []` saw an empty list and no
+				// signal — the same "a zero that is not a zero" shape this line of work keeps finding.
+				project: project ?? null,
+				projectResolution: projectResolution.resolution,
+				ledger,
+				nextCommand: nextCommands[0] ?? null,
+				nextCommands,
+			});
 			return;
 		}
 
@@ -182,10 +298,10 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			recentPrompts,
 			finish,
 			environmentPressure,
+			awaitingOperator,
 			handoffs: RESUME_HANDOFFS,
 		});
 		console.log(formatOperatorResumeSummary(summary));
-		const nextCommands = envelope.nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");
 			console.log("Next commands:");
@@ -195,6 +311,266 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		}
 	} finally {
 		await statusResult?.shutdown?.();
+	}
+}
+
+/**
+ * Answer a question whose asker is gone — the last link in the loop.
+ *
+ * A run asks and dies, the node remembers it asked, `resume` reports it, and this is where the
+ * answer finally lands: applying the change the original process would have applied, and writing
+ * the decision into the same trail it would have written to.
+ *
+ * ## `--authorize` and `--decline` are BOTH required to be explicit
+ *
+ * There is no default. A missing flag is not "probably yes" and not "probably no"; it is a
+ * malformed instruction, and the one place a consent surface must never guess is the answer.
+ */
+/**
+ * SHOW what a standing question would do, without answering it.
+ *
+ * THE READ THAT WAS MISSING. A standing question carries its whole request — every change with a
+ * complete before/after — because that is what applying it later needs. Nothing rendered it. On
+ * 2026-08-27 an agent had to open the sovereign trail files by hand to show the operator the
+ * systemd unit he was about to authorise, which is the opposite of a consent surface.
+ *
+ * IT IS ALSO WHY `nextCommands` CAN POINT SOMEWHERE HONEST. `--authorize` in a handoff would let
+ * an agent following CLAUDE.md answer the operator's question for him; the answer is the one
+ * thing a consent surface must never guess. So the handoff routes to SEEING, and the two ways to
+ * answer stay in prose where a human reads them.
+ */
+async function emitResumeShow(requestId: string, json: boolean): Promise<void> {
+	const root = declaredBase();
+	const answerHint = `${refarmCommand(["resume", "--answer", requestId, "--authorize"])} | ${refarmCommand(["resume", "--answer", requestId, "--decline"])}`;
+	for (const trailPath of standingQuestionTrailPaths(root)) {
+		const trail = createFileOperationTrail(trailPath);
+		const questions = (await trail.readQuestions?.()) ?? [];
+		const question = questions.find((candidate) => candidate.requestId === requestId);
+		if (!question) continue;
+		const changes = question.request?.changes ?? [];
+		if (json) {
+			printJson(
+				buildJsonSuccessEnvelope({
+					command: "resume",
+					operation: "show",
+					extra: { question, changes },
+					nextAction: `Decide it: ${answerHint}`,
+					nextCommands: [refarmCommand(["resume", "--json"])],
+				}),
+			);
+			return;
+		}
+		console.log(question.title);
+		console.log(chalk.dim(`  ${question.purpose}`));
+		console.log(chalk.dim(`  asked by ${question.requester} at ${question.askedAt}`));
+		for (const change of changes) {
+			console.log("");
+			console.log(chalk.dim(`--- ${change.path}`));
+			const insertion = change.insertion?.text;
+			// The INSERTION when there is one: a whole-file after-image of a config the operator
+			// already knows buries the four lines that are actually new.
+			console.log(insertion ?? change.after ?? "(no content recorded)");
+		}
+		console.log("");
+		console.log(chalk.dim(`  decide it: ${answerHint}`));
+		return;
+	}
+	const missing = `No standing question with id ${requestId} — it may have been answered or aged out.`;
+	if (json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "resume",
+				operation: "show",
+				extra: { requestId, found: false },
+				nextAction: missing,
+				nextCommands: [refarmCommand(["resume", "--json"])],
+			}),
+		);
+		return;
+	}
+	console.log(missing);
+}
+
+async function emitResumeAnswer(options: ResumeOptions, json: boolean): Promise<void> {
+	const requestId = options.answer ?? "";
+	const say = (message: string, extra: Record<string, unknown> = {}, ok = true) => {
+		if (json) {
+			printJson(
+				(ok ? buildJsonSuccessEnvelope : buildJsonErrorEnvelope)({
+					command: "resume",
+					operation: "answer",
+					...(ok ? {} : { error: "resume-answer-refused" }),
+					extra: { requestId, ...extra },
+					nextAction: message,
+					nextCommands: [refarmCommand(["resume", "--json"])],
+				} as never),
+			);
+		} else {
+			console.log(message);
+		}
+		if (!ok) process.exitCode = 1;
+	};
+
+	if (options.authorize === options.decline) {
+		say(
+			"Say which: --authorize or --decline. A missing answer is not a quiet yes and not a quiet no.",
+			{},
+			false,
+		);
+		return;
+	}
+
+	const decision = options.authorize ? "authorized" : "declined";
+	for (const trailPath of standingQuestionTrailPaths(declaredBase())) {
+		const outcome = await answerStandingQuestion({
+			requestId,
+			decision,
+			trail: createFileOperationTrail(trailPath),
+		});
+		switch (outcome.status) {
+			case "applied":
+				say(`Authorised and applied. Recorded as ${outcome.record.id}.`, { status: outcome.status });
+				return;
+			case "declined":
+				say(`Declined. Nothing was changed. Recorded as ${outcome.record.id}.`, {
+					status: outcome.status,
+				});
+				return;
+			case "expired":
+				say("That question's window closed before anyone answered it.", { status: outcome.status }, false);
+				return;
+			case "unanswerable":
+				// Reported honestly rather than offered a button that fails: this record predates
+				// the field that carries the request, so there is nothing to apply.
+				say(
+					"That question was recorded before this node stored what it would change, so it cannot be answered here — run the original command again.",
+					{ status: outcome.status },
+					false,
+				);
+				return;
+			case "stale":
+				// ISS-118's second check, made real. The gap between asking and answering is
+				// exactly where a card sits on a phone for an hour.
+				say(
+					`The world moved: ${outcome.drifted.join(", ")} no longer looks like it did when the question was put, so applying the stored change would clobber whatever altered it. Run the original command again.`,
+					{ status: outcome.status, drifted: outcome.drifted },
+					false,
+				);
+				return;
+			case "not-found":
+				break;
+		}
+	}
+	say(`No standing question with id ${requestId} — it may have been answered or aged out.`, {
+		status: "not-found",
+	});
+}
+
+/**
+ * Stop reporting one standing question.
+ *
+ * ## Why this exists, in the operator's own words
+ *
+ * "importante lidar com o lixo do resume, para não ficarmos recebendo algo de forma eterna
+ * poluindo" — and he is right in a way that matters more than tidiness. A surface an operator
+ * scrolls past has stopped working, and the standing-question record exists precisely to stop
+ * questions being ignored. Left to accumulate, it would manufacture the habit it was built to
+ * break.
+ *
+ * Two mechanisms, and they answer different questions:
+ *   · RETENTION, automatic — the trail bounds how many EXPIRED questions it keeps (never the
+ *     outstanding ones), pruning as a side effect of writing rather than needing a sweep.
+ *   · DISMISS, this — the operator saying a specific question was handled elsewhere or no longer
+ *     matters. Conscious, named, and reported back.
+ *
+ * IT CLEARS THE NODE'S MEMORY, NOT A LIVE CARD. If the asking process is still running and still
+ * waiting, its prompt is untouched: that lives in the hub under P1 and belongs to the process that
+ * put it. This says "stop telling me", never "cancel it".
+ */
+async function emitResumeDismiss(
+	requestId: string | null,
+	json: boolean,
+	expired: boolean,
+): Promise<void> {
+	const root = declaredBase();
+	const at = new Date().toISOString();
+	let dismissed = 0;
+	for (const trailPath of standingQuestionTrailPaths(root)) {
+		const trail = createFileOperationTrail(trailPath);
+		if (expired) dismissed += (await trail.dismissExpiredQuestions?.(at)) ?? 0;
+		if (requestId && (await trail.dismissQuestion?.(requestId))) dismissed += 1;
+	}
+	const subject = requestId ?? "every question whose window had closed";
+	const nextCommands = [refarmCommand(["resume", "--json"])];
+	// THREE STATES on the way out too: something went, or nothing matched — which is neither an
+	// error (it may have been answered a second ago) nor a success worth congratulating.
+	const nextAction =
+		dismissed > 0
+			? `${dismissed} no longer reported. Any asker still running keeps its own prompt — this cleared the node's memory, not a live card.`
+			: `Nothing matched ${subject}. It may have been answered, or aged out already.`;
+	if (json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "resume",
+				operation: "dismiss",
+				extra: { requestId, expired, dismissed },
+				nextAction,
+				nextCommands,
+			}),
+		);
+		return;
+	}
+	console.log(nextAction);
+}
+
+/**
+ * What this node is waiting on the operator for, read from the consent trails.
+ *
+ * ## Why the paths are a LIST and not a search
+ *
+ * Every trail this repo writes is named `operations.json`, in the directory that owns the thing it
+ * records — processes beside processes, certificates beside certificates, catalog decisions beside
+ * the config they change. That is a convention, not a registry, so this names them. A recursive
+ * search would find trails belonging to other roots and report another node's questions as this
+ * one's, which is the directory-versus-node confusion in a new costume.
+ *
+ * ## Absent is not empty
+ *
+ * Returns `null` when nothing could be read at all, so `resume` prints nothing rather than
+ * "nothing is waiting" — a sentence that would be a claim. An empty summary, by contrast, IS the
+ * claim, and it is the one that lets an operator stop wondering.
+ *
+ * Never throws: `resume` is the command an operator runs when they have lost the thread, and a
+ * trail it cannot parse must not be the reason they cannot run it.
+ */
+function standingQuestionTrailPaths(root: string): string[] {
+	return [
+		path.join(root, ".refarm", "processes", "operations.json"),
+		path.join(root, ".refarm", "tls", "operations.json"),
+		path.join(root, ".refarm", "operations.json"),
+	];
+}
+
+async function loadAwaitingOperator(): Promise<OperatorResumeAwaiting | null> {
+	try {
+		const root = declaredBase();
+		const questions: OperationQuestion[] = [];
+		for (const trailPath of standingQuestionTrailPaths(root)) {
+			const trail = createFileOperationTrail(trailPath);
+			questions.push(...((await trail.readQuestions?.()) ?? []));
+		}
+		const summary = summariseStandingQuestions(questions, new Date().toISOString());
+		const flatten = (list: OperationQuestion[]) =>
+			list.map((question) => ({
+				requestId: question.requestId,
+				title: question.title,
+				requester: question.requester,
+				askedAt: question.askedAt,
+				expiresAt: question.expiresAt,
+			}));
+		return { outstanding: flatten(summary.outstanding), expired: flatten(summary.expired) };
+	} catch {
+		return null;
 	}
 }
 
@@ -248,9 +624,12 @@ export function loadKnownSessionPressureFiles(baseDir?: string): SessionPressure
 	);
 }
 
-export function loadProjectHandoff(
-	cwd: string = process.cwd(),
-): OperatorResumeProjectSummary | undefined {
+/** The low-level reader: the handoff at THIS directory. `cwd` is required — the `= process.cwd()`
+ *  default it used to carry is the exact shape
+ *  `docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md` calls the footgun, and it
+ *  was how `resume` came to read a project nobody chose. Deciding WHICH directory is
+ *  `resolveProjectHandoff`'s job, below; this function only reads the one it is handed. */
+export function loadProjectHandoff(cwd: string): OperatorResumeProjectSummary | undefined {
 	const handoffPath = path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 	try {
 		return parseProjectHandoffSummary(JSON.parse(fs.readFileSync(handoffPath, "utf-8")), {
@@ -261,19 +640,383 @@ export function loadProjectHandoff(
 	}
 }
 
+/**
+ * FOUR STATES, and the old code had one. `loadProjectHandoff` returned `undefined` for "there is no
+ * project here", "the handoff is corrupt", and "the handoff exists and was never checkpointed"
+ * alike, and `resume` then omitted the key entirely — so from outside a project the envelope said
+ * `ok: true` with no project, no tasks, no blockers and `truncation: null`. A consumer reading
+ * `project?.currentTasks ?? []` got an empty list and no signal at all (ISS-092).
+ */
+export type ProjectHandoffResolution =
+	| { state: "read"; workspaceId: string | null; from: "flag" | "cwd-match" | "cwd-convention"; path: string; catalogError?: string }
+	| { state: "empty"; workspaceId: string | null; from: "flag" | "cwd-match" | "cwd-convention"; path: string; catalogError?: string }
+	| { state: "unreadable"; workspaceId: string | null; path: string; reason: string; catalogError?: string }
+	| {
+			state: "absent";
+			reason: "no-project-here" | "no-such-workspace" | "no-handoff-in-workspace";
+			workspaceId?: string;
+			/**
+			 * The directory this resolution was reached FROM — and absent when it was not.
+			 *
+			 * ISS-111, found by the seeded-node fixture on its first run: `resume --workspace X`
+			 * answered identically from three directories in every field EXCEPT this one. The
+			 * guarantee held — an explicitly named workspace is a node-level address and the ANSWER
+			 * does not move — but a diagnostic ABOUT the question was moving, so a consumer diffing
+			 * two payloads across machines saw a difference that means nothing.
+			 *
+			 * When the origin is `cwd-match` or `cwd-convention`, `cwd` is HOW the answer was
+			 * reached and reporting it is the entire point. When the operator named the workspace,
+			 * the directory played no part, and a key the caller did not influence carries no key
+			 * at all — the same absent-not-null rule the rest of this payload follows.
+			 */
+			cwd?: string;
+			declared: string[];
+			/** Set when the node's catalog could not be READ at all — a different fact from "this node
+			 *  declares no workspaces", and one `resume` must never present as the latter. */
+			catalogError?: string;
+	  };
+
+export interface ProjectHandoffResolutionResult {
+	summary: OperatorResumeProjectSummary | undefined;
+	resolution: ProjectHandoffResolution;
+}
+
+export interface ResolveProjectHandoffInput {
+	/** An explicit workspace id. This is what lets `resume` answer about refarm from a phone, a
+	 *  Termux session or `/tmp` — anywhere the operator is not standing in the checkout. */
+	workspace?: string;
+	/** A DELIBERATE cwd read, used only to match against the declared catalog or, failing that, to
+	 *  look for a project by convention. Always reported in `from`. */
+	cwd: string;
+	loadWorkspaces: () => LedgerWorkspace[];
+	fileExists: (candidate: string) => boolean;
+	readDocument: (candidate: string) => string;
+}
+
+function isInsideDirectory(parent: string, candidate: string): boolean {
+	const relative = path.relative(parent, candidate);
+	return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
+ * Resolves WHICH project `resume` should report on, through the node's declared catalog — the same
+ * way this module's `ledger` block already resolves, so one envelope stops carrying two resolution
+ * models.
+ *
+ * Precedence, each step reported rather than inferred: an explicit `--workspace` id; else the
+ * longest declared workspace containing `cwd`; else a `.project/handoff.json` sitting in `cwd`
+ * itself, read and reported as `cwd-convention` so a checkout nobody declared keeps working and
+ * says that it was inferred; else absent, naming where it looked and what this node declares.
+ */
+export function resolveProjectHandoff(input: ResolveProjectHandoffInput): ProjectHandoffResolutionResult {
+	// `resume` is the command that must ALWAYS answer — it is what an operator runs when he does not
+	// know what state anything is in, and CLAUDE.md mandates it at the start of every slice. A
+	// catalog that cannot be read degrades this block to the convention path and is REPORTED;
+	// it never takes the whole envelope down with it. (Found by the test suite: the first version
+	// of this resolver let `loadConfig` throw straight through `emitResume`.)
+	let workspaces: LedgerWorkspace[] = [];
+	let catalogError: string | undefined;
+	try {
+		workspaces = input.loadWorkspaces();
+	} catch (error) {
+		catalogError = error instanceof Error ? error.message : String(error);
+	}
+	const declared = workspaces.map((workspace) => workspace.id);
+	const withCatalogError = <T extends object>(resolution: T): T & { catalogError?: string } =>
+		catalogError ? { ...resolution, catalogError } : resolution;
+
+	let root: string | undefined;
+	let workspaceId: string | null = null;
+	let from: "flag" | "cwd-match" | "cwd-convention";
+
+	if (input.workspace) {
+		const match = workspaces.find((workspace) => workspace.id === input.workspace);
+		if (!match) {
+			return {
+				summary: undefined,
+				// No `cwd`: this branch is reachable only when the operator NAMED a workspace, so the
+				// directory played no part in reaching it.
+				resolution: withCatalogError({ state: "absent" as const, reason: "no-such-workspace" as const, declared }),
+			};
+		}
+		root = match.absolutePath;
+		workspaceId = match.id;
+		from = "flag";
+	} else {
+		// LONGEST match wins, so a workspace nested inside another is not shadowed by its parent —
+		// the same rule `resolveWorkspaceLedger` follows for the ledger.
+		const match = workspaces
+			.filter((workspace) => isInsideDirectory(workspace.absolutePath, input.cwd))
+			.sort((left, right) => right.absolutePath.length - left.absolutePath.length)[0];
+		if (match) {
+			root = match.absolutePath;
+			workspaceId = match.id;
+			from = "cwd-match";
+		} else {
+			root = input.cwd;
+			from = "cwd-convention";
+		}
+	}
+
+	const handoffPath = path.join(root, PROJECT_HANDOFF_RELATIVE_PATH);
+	if (!input.fileExists(handoffPath)) {
+		return {
+			summary: undefined,
+			resolution: withCatalogError({
+				state: "absent" as const,
+				reason: (workspaceId ? "no-handoff-in-workspace" : "no-project-here") as
+					| "no-handoff-in-workspace"
+					| "no-project-here",
+				...(workspaceId ? { workspaceId } : {}),
+				// Only when the directory is HOW this was reached. `from === "flag"` means the
+				// operator named the workspace and `cwd` would be a fact about the caller, not
+				// about the resolution.
+				...(from === "flag" ? {} : { cwd: input.cwd }),
+				declared,
+			}),
+		};
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(input.readDocument(handoffPath));
+	} catch (error) {
+		return {
+			summary: undefined,
+			resolution: withCatalogError({
+				state: "unreadable" as const,
+				workspaceId,
+				path: handoffPath,
+				reason: error instanceof Error ? error.message : String(error),
+			}),
+		};
+	}
+
+	const summary = parseProjectHandoffSummary(parsed, { arrayLimit: 5 });
+	if (!summary) {
+		// The document is there and holds no checkpoint. That is a real state — a project nobody has
+		// written a handoff for yet — and folding it into `absent` would tell the operator to go
+		// looking for a project that is right in front of him.
+		return {
+			summary: undefined,
+			resolution: withCatalogError({ state: "empty" as const, workspaceId, from, path: handoffPath }),
+		};
+	}
+	return { summary, resolution: withCatalogError({ state: "read" as const, workspaceId, from, path: handoffPath }) };
+}
+
+/** The default seam: the node's declared catalog and the real filesystem. */
+export function resolveProject(workspace?: string): ProjectHandoffResolutionResult {
+	return resolveProjectHandoff({
+		workspace,
+		cwd: currentDirectoryForCatalogMatch(),
+		loadWorkspaces: defaultLedgerIo.loadWorkspaces,
+		fileExists: defaultLedgerIo.fileExists,
+		readDocument: defaultLedgerIo.readDocument,
+	});
+}
+
 export async function loadScheduledWork(
+	// os-resolution: project — scheduled work is declared per project, in the tree the operator is standing in
 	cwd: string = process.cwd(),
 	options: LoadScheduledWorkOptions = {},
 ): Promise<OperatorResumeScheduledWorkInspection | undefined> {
 	return loadProjectScheduledWork({ cwd, ...options });
 }
 
+export interface LedgerReadResult {
+	ok: boolean;
+	items?: { id: string; status: string; axis?: string }[];
+	error?: { reason: string; message: string };
+}
+
+export interface LedgerSummary {
+	workspaces: Record<string, { open: number; unclassified: number; byAxis: Record<string, number> }>;
+	unreadable: Record<string, { reason: string; message?: string }>;
+}
+
+/** PURE. Takes already-read results so it is testable without a filesystem, and so a slow or
+ * failing workspace cannot change the shape of the answer. There is no `total` field, and
+ * adding one later would be a regression: summing open items across workspaces is exactly the
+ * mixing the operator ruled out when he said issues from different workspaces must never mix. */
+export function buildLedgerSummary(reads: Record<string, LedgerReadResult>): LedgerSummary {
+	const workspaces: LedgerSummary["workspaces"] = {};
+	const unreadable: LedgerSummary["unreadable"] = {};
+
+	for (const [id, read] of Object.entries(reads)) {
+		if (!read.ok) {
+			unreadable[id] = read.error ?? { reason: "unknown" };
+			continue; // NEVER `workspaces[id] = { open: 0 }` — unreadable is not empty.
+		}
+		const open = (read.items ?? []).filter((item) => item.status === "open");
+		const byAxis: Record<string, number> = {};
+		for (const item of open) {
+			if (!item.axis) continue; // unclassified is its own row, never an axis bucket
+			byAxis[item.axis] = (byAxis[item.axis] ?? 0) + 1;
+		}
+		workspaces[id] = {
+			open: open.length,
+			unclassified: open.filter((item) => !item.axis).length,
+			byAxis,
+		};
+	}
+
+	return { workspaces, unreadable };
+}
+
+/** The workspace with the most open items becomes `resume`'s ledger handoff — never a
+ *  cross-workspace sum (there is no `total` on `LedgerSummary`, see above). Ties keep the
+ *  first-encountered id, which is alphabetical in production
+ *  (`declaredWorkspacesFromConfig` sorts by `id.localeCompare`). Empty when no workspace has
+ *  any open item — `resume` must not invent a handoff for a clean ledger. */
+export function buildLedgerNextCommands(ledger: LedgerSummary): string[] {
+	let busiest: string | undefined;
+	let busiestOpen = 0;
+	for (const [id, workspace] of Object.entries(ledger.workspaces)) {
+		if (workspace.open > busiestOpen) {
+			busiest = id;
+			busiestOpen = workspace.open;
+		}
+	}
+	return busiest ? [refarmCommand(["issues", "list", "--workspace", busiest, "--json"])] : [];
+}
+
+/** Every filesystem read `loadLedgerReads` performs, gathered behind one seam so a test can
+ *  inject a fake catalog and fake ledger documents without touching the operator's real
+ *  `~/.refarm/config.json` or any real `.project/issues.json`. Structurally identical to
+ *  `IssuesIo` in `./issues.js` (same four methods) — kept as its own copy here, NOT extracted
+ *  into `@refarm.dev/cli` alongside `resolveWorkspaceLedger`, on a judgement call: both copies
+ *  are pure interface shape with no behavior of their own, `resolveWorkspaceLedger`'s own
+ *  `ResolveLedgerInput` already names the same four fields as its parameter type (so a real
+ *  drift would surface as a type error at either call site, not silently), and hoisting a
+ *  fifth copy of this shape into a published, dist-mode package for two four-line interfaces
+ *  is not proportionate to the duplication it would remove. Revisit if a THIRD command needs
+ *  the same seam — that is the point at which one shared shape earns its keep. */
+export interface LedgerIo {
+	loadWorkspaces: () => LedgerWorkspace[];
+	fileExists: (candidate: string) => boolean;
+	readDocument: (candidate: string) => string;
+	writeDocument: (candidate: string, contents: string) => void;
+}
+
+/** `declaredWorkspacesFromConfig` is JS-inferred as returning `(… | null)[]` because its
+ *  `.filter(Boolean)` does not narrow for TypeScript — filtered here, explicitly, rather than
+ *  widening `LedgerWorkspace` to tolerate `null` (same shape as `./issues.js`'s copy). */
+function defaultLoadWorkspaces(): LedgerWorkspace[] {
+	const baseDir = declaredBase();
+	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir }).filter(
+		(workspace): workspace is NonNullable<typeof workspace> => workspace !== null,
+	);
+}
+
+const defaultLedgerIo: LedgerIo = {
+	loadWorkspaces: defaultLoadWorkspaces,
+	fileExists: (candidate: string) => fs.existsSync(candidate),
+	readDocument: (candidate: string) => fs.readFileSync(candidate, "utf-8"),
+	writeDocument: (candidate: string, contents: string) => fs.writeFileSync(candidate, contents),
+};
+
+/** THE ONE DELIBERATE cwd READ in this module — satisfies `resolveWorkspaceLedger`'s required
+ *  `cwd` field and is never actually consulted: every call below passes an explicit `workspace`
+ *  id with `enumerated: true`, so the resolver's cwd-match branch never runs. Wrapped in a
+ *  named, documented function (a `return`, never a bare `= process.cwd()` default or `??`
+ *  fallback) so it reads as the same deliberate, reported, non-default read `./issues.js`
+ *  documents for the identical reason — not a silent OS fallback of the kind
+ *  `scripts/no-os-resolution.mjs` exists to catch. */
+function currentDirectoryForCatalogMatch(): string {
+	return process.cwd();
+}
+
+/** `resolveWorkspaceLedger`'s `ok: false` branch names a `reason` but not a message — this
+ *  echoes the BASE wording `refuse()` in `./issues.js` uses for the same three reasons, but
+ *  deliberately NOT the full strings: `refuse()`'s messages are CLI stderr guidance for a
+ *  human who typed `--workspace <id>` (they append `Declared: <list>` and, for
+ *  `cwd_unmatched`, `Pass --workspace <id>.`) — a suffix that does not belong in a JSON ledger
+ *  row's `error.message`, and would be actively misleading here besides: `resume` always
+ *  passes an explicit `workspace` id drawn from the SAME catalog it just enumerated, so
+ *  `no_such_workspace` and `cwd_unmatched` are unreachable in practice (kept only so this
+ *  table stays exhaustive over `LedgerResolution`'s reason union) and `no_provider` is the
+ *  only one that can really fire in practice today — `provider_unsupported` joins it as
+ *  reachable the day any declared workspace names a provider with no adapter (`github`,
+ *  `gitlab`). A shared helper would have to take a "for a human CLI refusal, or for a JSON
+ *  reason table" flag to serve both call sites correctly — more machinery than the ~3 lines of
+ *  overlap it would save. Left duplicated for that reason. */
+const RESOLUTION_FAILURE_MESSAGES: Record<string, string> = {
+	no_such_workspace: "No declared workspace with that id.",
+	cwd_unmatched: "This directory is inside no declared workspace.",
+	no_provider: "This workspace declares no work-item provider and has no .project/issues.json.",
+	provider_unsupported: "This workspace declares a work-item provider with no adapter yet.",
+};
+
+/**
+ * Reads every declared workspace's ledger DEFENSIVELY, through `resolveWorkspaceLedger` (Task
+ * 4) — the same resolver `refarm issues` uses, so `resume`'s counts and `issues list`'s counts
+ * can never drift apart by walking two different paths to the same document. A throw anywhere
+ * in ONE workspace's read (a malformed document, an adapter bug, a filesystem error) lands
+ * THAT workspace's row in `unreadable` and never aborts the read for any other declared
+ * workspace, nor the `resume` envelope as a whole — `resume` is the first command an operator
+ * runs, and degrading it to a hard error because one ledger is malformed would be worse than
+ * the defect it exists to report.
+ */
+export function loadLedgerReads(io: LedgerIo = defaultLedgerIo): Record<string, LedgerReadResult> {
+	const reads: Record<string, LedgerReadResult> = {};
+	let workspaces: LedgerWorkspace[];
+	try {
+		workspaces = io.loadWorkspaces();
+	} catch {
+		return reads; // No declared catalog readable — an empty ledger, not a crashed resume.
+	}
+
+	for (const workspace of workspaces) {
+		try {
+			const resolution = resolveWorkspaceLedger({
+				workspace: workspace.id,
+				enumerated: true,
+				cwd: currentDirectoryForCatalogMatch(),
+				loadWorkspaces: io.loadWorkspaces,
+				fileExists: io.fileExists,
+				readDocument: io.readDocument,
+				writeDocument: io.writeDocument,
+			});
+			if (!resolution.ok) {
+				reads[workspace.id] = {
+					ok: false,
+					error: {
+						reason: resolution.reason,
+						message: RESOLUTION_FAILURE_MESSAGES[resolution.reason] ?? resolution.reason,
+					},
+				};
+				continue;
+			}
+			const read = resolution.adapter.list();
+			reads[workspace.id] = read.ok
+				? { ok: true, items: read.items }
+				: {
+						ok: false,
+						error: read.error ?? {
+							reason: "document_unreadable",
+							message: "Could not read this workspace's ledger.",
+						},
+					};
+		} catch (error) {
+			reads[workspace.id] = {
+				ok: false,
+				error: {
+					reason: "ledger_read_failed",
+					message: error instanceof Error ? error.message : String(error),
+				},
+			};
+		}
+	}
+	return reads;
+}
+
 async function loadModelResumeSummary(
-	deps: Pick<ResumeDeps, "loadModelTokens">,
+	deps: Pick<ResumeDeps, "loadModelTokens" | "loadModelCatalog">,
 ): Promise<OperatorResumeModelSummary | undefined> {
 	try {
 		const tokens = await deps.loadModelTokens();
-		const status = buildCurrentModelStatus(tokens);
+		const status = buildCurrentModelStatus(tokens, await deps.loadModelCatalog?.());
 		return {
 			current: {
 				scope: "default",

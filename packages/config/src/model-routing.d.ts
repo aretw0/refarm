@@ -68,7 +68,13 @@ export type ModelCredentialStatus =
     | { state: "env"; envKey: string }
     | { state: "silo-api-key"; envKey: string }
     | { state: "silo-oauth"; envKey: string; oauthProvider: string }
-    | { state: "missing"; envKey: string };
+    | { state: "missing"; envKey: string }
+    /**
+     * Not in the environment and not in the flat token map — which is NOT "there is none".
+     * A credential may live in the silo's `model` namespace, which this function does not read.
+     * Ask an AccountView for a real answer.
+     */
+    | { state: "unresolved"; envKey: string };
 
 export function inferProviderFromModelId(modelId: string): string | undefined;
 export function isModelProvider(value: string | undefined): boolean;

@@ -134,7 +134,7 @@ consumer can inspect why a primitive exists and which primary references shaped
 it without loading the full research note.
 The top-level `publicationBoundary` makes the package boundary explicit:
 discovery currently lives at `@refarm.dev/cli/capability-index`,
-`@refarm.dev/cli` remains in `boundary-review`, it is not a `vault-seed-ready`
+`@refarm.dev/cli` remains in `boundary-review`, it is not a `consumer-ready`
 leaf, and runtime execution stays private until promotion proofs pass.
 The top-level `adoptionCriteria` list is the promotion bar for reference-driver
 work: structured lifecycle events, resumable sessions, steering/cancellation,

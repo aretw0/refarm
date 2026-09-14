@@ -50,7 +50,7 @@ export interface RefarmMeSurfaceContextOptions {
 	scheduledWorkSummary?: {
 		total: number;
 		due: number;
-		scheduled: number;
+		declared: number;
 		unsupported: number;
 	};
 }
@@ -144,7 +144,7 @@ export function renderRefarmMePersonalSurface(
 	);
 	const scheduledWorkLabel = escapeRefarmMeSurfaceText(
 		scheduledWorkSummary
-			? `${scheduledWorkSummary.scheduled} scheduled / ${scheduledWorkSummary.due} due`
+			? `${scheduledWorkSummary.declared} declared / ${scheduledWorkSummary.due} due`
 			: "not provided",
 	);
 	const action = request.host?.actions?.find(
@@ -293,7 +293,7 @@ function readRefarmMeSurfaceScheduledWorkSummary(value: unknown):
 	| {
 			total: number;
 			due: number;
-			scheduled: number;
+			declared: number;
 			unsupported: number;
 	  }
 	| undefined {
@@ -301,13 +301,13 @@ function readRefarmMeSurfaceScheduledWorkSummary(value: unknown):
 	const candidate = value as {
 		total?: unknown;
 		due?: unknown;
-		scheduled?: unknown;
+		declared?: unknown;
 		unsupported?: unknown;
 	};
 	if (
 		typeof candidate.total !== "number" ||
 		typeof candidate.due !== "number" ||
-		typeof candidate.scheduled !== "number" ||
+		typeof candidate.declared !== "number" ||
 		typeof candidate.unsupported !== "number"
 	) {
 		return undefined;
@@ -315,7 +315,7 @@ function readRefarmMeSurfaceScheduledWorkSummary(value: unknown):
 	return {
 		total: candidate.total,
 		due: candidate.due,
-		scheduled: candidate.scheduled,
+		declared: candidate.declared,
 		unsupported: candidate.unsupported,
 	};
 }

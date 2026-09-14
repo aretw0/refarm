@@ -47,6 +47,7 @@ fn prompt_ref(payload: &Value) -> Option<&str> {
 /// - `agent:iteration`      → `process:progress` note "step N/max" + fraction
 /// - `agent:tool:call`      → `process:progress` note "tool <name>" (or "tool <name> ✗")
 /// - `agent:budget:blocked` → `process:progress` note "budget blocked: <provider>"
+/// - `agent:budget:unknown` → `process:progress` note "budget unknown: <provider> (<reason>)"
 /// - `agent:response:done`  → `process:finished` ok=true
 /// - `agent:error`          → `process:finished` ok=false
 pub(crate) fn agent_event_to_activity(event: &str, payload: &Value) -> Option<Value> {
@@ -119,6 +120,18 @@ pub(crate) fn agent_event_to_activity(event: &str, payload: &Value) -> Option<Va
                 None,
             ))
         }
+        crate::agent_event_names::BUDGET_UNKNOWN => {
+            let provider = payload.get("provider").and_then(Value::as_str).unwrap_or("?");
+            let reason = payload.get("reason").and_then(Value::as_str).unwrap_or("?");
+            let note = format!("budget unknown: {provider} ({reason})");
+            Some(process_activity::progress_payload(
+                reference,
+                AGENT_ACTIVITY_LABEL,
+                AGENT_ACTIVITY_KIND,
+                Some(&note),
+                None,
+            ))
+        }
         crate::agent_event_names::RESPONSE_DONE => Some(process_activity::finished_payload(
             reference,
             AGENT_ACTIVITY_LABEL,
@@ -179,6 +192,22 @@ mod tests {
     }
 
     #[test]
+    fn the_last_step_of_a_run_renders_as_n_of_n_never_n_plus_one_of_n() {
+        // The display half of the off-by-one. `agent:iteration` carried a 0-based
+        // index against `max_iter`, which the agent's loop read as a maximum
+        // INDEX and not a count: a 25-step ceiling ran 26 iterations, and this
+        // renderer printed the last one as `step 26/25` with a progress fraction
+        // of 1.04. The agent now emits a COUNT (`loop_core.rs`), so the highest
+        // index this can ever receive for a 25-step run is 24.
+        let mut payload = p("urn:p-1");
+        payload["iteration"] = json!(24);
+        payload["max"] = json!(25);
+        let a = agent_event_to_activity("agent:iteration", &payload).unwrap();
+        assert_eq!(a["note"], "step 25/25");
+        assert_eq!(a["fraction"], json!(1.0), "a full run is 100% done, never 104%");
+    }
+
+    #[test]
     fn tool_call_marks_failures() {
         let mut ok = p("urn:p-1");
         ok["tool"] = json!("read_file");
@@ -209,6 +238,36 @@ mod tests {
         let a = agent_event_to_activity("agent:budget:blocked", &payload).unwrap();
         assert_eq!(a["phase"], "progress");
         assert_eq!(a["note"], "budget blocked: anthropic");
+    }
+
+    #[test]
+    fn budget_unknown_is_a_progress_note_naming_the_reason() {
+        // The "loud" half of the agent's FAIL-OPEN-BUT-LOUD budget policy must reach
+        // the same operator-facing surface `budget:blocked` does — the CLI tails
+        // `activity.ndjson`, not the audit log or an opt-in observer plugin.
+        //
+        // BOTH REASONS ARE REACHABLE, and this comment used to say otherwise (ISS-037).
+        // It claimed that "as of the agent's round-2 budget-guard fix, only `query_error`
+        // is ever actually emitted", which went stale the moment `RequeryTruncated`
+        // became a returned value: `session::pure::resolve_budget_check` yields it when
+        // the FOLLOW-UP read comes back truncated too, and that path is live today.
+        //
+        // No functional impact — this formatter is reason-string-agnostic by design, and
+        // that is exactly why the drift could sit here: nothing failed, the comment simply
+        // stopped being true. `BudgetUnknownReason` in the agent crate is the source of
+        // truth for which strings exist.
+        let mut payload = p("urn:p-1");
+        payload["provider"] = json!("anthropic");
+        payload["reason"] = json!("truncated");
+        let a = agent_event_to_activity("agent:budget:unknown", &payload).unwrap();
+        assert_eq!(a["phase"], "progress");
+        assert_eq!(a["note"], "budget unknown: anthropic (truncated)");
+
+        let mut qerr = p("urn:p-1");
+        qerr["provider"] = json!("anthropic");
+        qerr["reason"] = json!("query_error");
+        let b = agent_event_to_activity("agent:budget:unknown", &qerr).unwrap();
+        assert_eq!(b["note"], "budget unknown: anthropic (query_error)");
     }
 
     #[test]

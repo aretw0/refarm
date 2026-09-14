@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import {
+  composeModelRateCatalog,
+  create{{pascalName}}ComposerPlugin,
+  create{{pascalName}}RatesPlugin,
+  type ModelCatalogRatesPlugin,
+} from "./index.js";
+
+describe("{{name}} scaffold", () => {
+  it("builds a provider plugin that exposes immutable entries", () => {
+    const plugin = create{{pascalName}}RatesPlugin([
+      {
+        provider: "openai",
+        match: { mode: "contains", value: "gpt-5" },
+        rate: { inputPerMTokenUsd: 1, outputPerMTokenUsd: 2 },
+        pricingUrl: "https://example.com/openai-pricing",
+        verifiedAt: "2026-08-04",
+      },
+    ]);
+
+    const firstRead = plugin.entries();
+    const secondRead = plugin.entries();
+    expect(firstRead).toHaveLength(1);
+    expect(secondRead).toHaveLength(1);
+    expect(firstRead).not.toBe(secondRead);
+  });
+
+  it("composes multiple provider plugins into one catalog", () => {
+    const a = create{{pascalName}}RatesPlugin([
+      {
+        provider: "openai",
+        match: { mode: "contains", value: "gpt-5" },
+        rate: { inputPerMTokenUsd: 1, outputPerMTokenUsd: 2 },
+        pricingUrl: "https://example.com/openai-pricing",
+        verifiedAt: "2026-08-04",
+      },
+    ]);
+
+    const b: ModelCatalogRatesPlugin = {
+      id: "provider:anthropic",
+      capability: a.capability,
+      entries: () => [
+        {
+          provider: "anthropic",
+          match: { mode: "contains", value: "claude-sonnet" },
+          rate: { inputPerMTokenUsd: 2, outputPerMTokenUsd: 10 },
+          pricingUrl: "https://example.com/anthropic-pricing",
+          verifiedAt: "2026-08-04",
+        },
+      ],
+    };
+
+    const catalog = composeModelRateCatalog({
+      catalogVersion: "2026-08-04.0",
+      plugins: [a, b],
+    });
+
+    expect(catalog.schemaVersion).toBe("model-rate-catalog.v1");
+    expect(catalog.entries).toHaveLength(2);
+  });
+
+  it("creates a composer plugin for plugin-of-plugin composition", () => {
+    const composer = create{{pascalName}}ComposerPlugin();
+    const provider = create{{pascalName}}RatesPlugin([]);
+
+    const catalog = composer.compose({
+      catalogVersion: "2026-08-04.1",
+      plugins: [provider],
+    });
+
+    expect(composer.id).toContain("/composer");
+    expect(catalog.catalogVersion).toBe("2026-08-04.1");
+  });
+});

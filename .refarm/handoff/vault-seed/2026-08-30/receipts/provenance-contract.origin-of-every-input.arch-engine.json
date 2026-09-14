@@ -1,0 +1,24 @@
+{
+  "proofId": "provenance-contract.origin-of-every-input",
+  "packageName": "@refarm.dev/provenance-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "ff1e89f7bd6e1f269c3cd85ace28a2522283400f",
+  "consumerDirty": false,
+  "manifestSha256": "acec276ab331a4d6fa758be5056797dd79715e85856d834b8dc4ed2033b5b5bf",
+  "generatedAt": "2026-08-30T17:48:35.000Z",
+  "commands": [
+    "npm run vendor:refarm",
+    "npm install --no-package-lock",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+  "notes": [
+    "Primeiro puller deste pacote e primeiro registro de entrada que nao e nota: um DB de materiais de construcao (examples/eco-house-demo/data/materiais.yaml), 7 insumos, cada um com channel, originLink, collectedAt e license apontando para o ICE v2.0.",
+    "O produtor e Python: o build escreve artifacts/insumos.json com a provenance de cada insumo; a prova Node le esse dataset e passa cada provenance por readProvenance + verifyProvenance do tarball real. 7/7 validas, not-empty-origin ok em todas.",
+    "O validador Python (core/arch_engine/validator.py, regra provenance-required) espelha os checks nomeados has-channel / collected-at-valid / sha256-shape / not-empty-origin e decide severidade downstream (warn na demo), como o ownershipBoundary pede.",
+    "Fronteira mantida: catalogo de fontes, licenca e quais checks bloqueiam ficam no perfil YAML do consumidor; o contrato so diz se a provenance esta bem dita.",
+    "Terceira emissao, sobre o packet 2026-08-30 rematerializado com 27 pacotes (refarm 50539198): quality-contract-v1 mudou de bytes (36049781cfb7), artifact e provenance nao; test:refarm passa sobre os artefatos do build verificado na main do arch-engine (run 33287941277)."
+  ]
+}

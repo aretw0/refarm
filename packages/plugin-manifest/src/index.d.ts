@@ -14,7 +14,8 @@ export type Permission =
 	| "fs:read"
 	| "fs:write"
 	| "shell:spawn"
-	| "network:outbound";
+	| "network:outbound"
+	| "connection:use";
 export type PermissionRisk = "low" | "medium" | "high";
 export interface PermissionSpec {
 	id: Permission;
@@ -185,6 +186,11 @@ export interface PluginCapabilities {
 	subscribes?: string[];
 	providesApi?: string[];
 	requiresApi?: string[];
+	/** The declared connections (`.refarm/config.json`'s `connections` block) this
+	 * plugin expects to `ensure`, by name. Mirrors `requiresApi`: declaring this
+	 * up front turns a missing declaration into an install-time error instead of
+	 * a runtime surprise. Optional. */
+	requiresConnections?: string[];
 	/** Per-verb usage prose (promptSnippet Slice 2), keyed by the same
 	 * `<key>:<verb>` string in `provides`. When present, the agent leg's
 	 * system-prompt guidance for that verb is this prose instead of host boilerplate
@@ -323,6 +329,7 @@ export interface PluginPolicyDecision {
 	manifestValid: boolean;
 	manifestErrors: string[];
 	missingCapabilities: string[];
+	missingConnections: string[];
 }
 
 export function evaluateCapabilityGrant(
@@ -331,7 +338,11 @@ export function evaluateCapabilityGrant(
 ): string[];
 export function decidePluginPolicy(
 	manifest: PluginManifest,
-	options: { grantedCapabilities: string[]; policyMode: PluginPolicyMode },
+	options: {
+		grantedCapabilities: string[];
+		policyMode: PluginPolicyMode;
+		availableConnections?: string[];
+	},
 ): PluginPolicyDecision;
 
 export type CapabilityGrantDecision = "granted" | "denied" | "review-required";

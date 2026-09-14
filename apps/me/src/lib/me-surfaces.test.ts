@@ -123,7 +123,7 @@ describe("refarm.me Homestead surface", () => {
 					scheduledWorkSummary: {
 						total: 2,
 						due: 1,
-						scheduled: 1,
+						declared: 1,
 						unsupported: 0,
 					},
 				},
@@ -149,7 +149,7 @@ describe("refarm.me Homestead surface", () => {
 			`<dd data-refarm-me-reference-driver-count>1</dd>`,
 		);
 		expect((rendered as { html: string }).html).toContain(
-			`<dd data-refarm-me-scheduled-work>1 scheduled / 1 due</dd>`,
+			`<dd data-refarm-me-scheduled-work>1 declared / 1 due</dd>`,
 		);
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
@@ -183,7 +183,7 @@ describe("refarm.me Homestead surface", () => {
 			scheduledWorkSummary: {
 				total: 1,
 				due: 0,
-				scheduled: 1,
+				declared: 1,
 				unsupported: 0,
 			},
 		});
@@ -203,7 +203,7 @@ describe("refarm.me Homestead surface", () => {
 				scheduledWorkSummary: {
 					total: 1,
 					due: 0,
-					scheduled: 1,
+					declared: 1,
 					unsupported: 0,
 				},
 			},

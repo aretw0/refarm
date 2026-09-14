@@ -1,5 +1,7 @@
 use crate::{
-    provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL},
+    provider_config::{
+        choose_model, openai_compat_defaults, provider_base_url_from, ANTHROPIC_DEFAULT_MODEL,
+    },
     plugin::host::model_bridge,
 };
 
@@ -9,7 +11,8 @@ pub struct CompletionResult {
     pub tool_calls: serde_json::Value,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: String,
 }
@@ -39,7 +42,24 @@ impl Provider {
         }
 
         let (default_base, default_model) = openai_compat_defaults(provider_name);
-        let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
+        // THE ACCOUNT'S OWN ENDPOINT FIRST, then the global override, then the static default —
+        // the same order the host resolves in, because the host validates this request against its
+        // own resolution and a different order would build requests it refuses (ISS-141).
+        // THIS TURN'S SEAT FIRST, then the per-provider map, then the global override, then the
+        // static default. The order is the precedence: an endpoint that belongs to the ACCOUNT
+        // paying for this turn is narrower than one that belongs to its provider, which is narrower
+        // than one the operator set for the whole node.
+        let base_url = std::env::var("MODEL_TASK_BASE_URL")
+            .ok()
+            .map(|v| v.trim().to_owned())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                std::env::var("MODEL_PROVIDER_BASE_URLS")
+                    .ok()
+                    .and_then(|raw| provider_base_url_from(&raw, provider_name))
+            })
+            .or_else(|| std::env::var("MODEL_BASE_URL").ok().filter(|v| !v.trim().is_empty()))
+            .unwrap_or_else(|| default_base.to_owned());
         Provider::OpenAiCompat {
             provider: provider_name.to_owned(),
             base_url,

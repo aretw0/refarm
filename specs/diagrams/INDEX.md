@@ -2,6 +2,28 @@
 
 This file is the Map of Content for architecture-grade diagrams in Refarm.
 
+## Architecture Authority
+
+Diagrams compress the architecture for navigation; they do not define package
+ownership or dependency truth. Resolve disagreements in this order:
+
+1. [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for normative responsibilities.
+2. Generated [`ARCHITECTURE_INVENTORY.md`](../../docs/ARCHITECTURE_INVENTORY.md) and
+   [`ARCHITECTURE_CONTEXT_MAP.md`](../../docs/ARCHITECTURE_CONTEXT_MAP.md) for measured topology.
+3. [`DIAGRAM_INVENTORY.md`](../../docs/DIAGRAM_INVENTORY.md) for Mermaid-to-SVG coverage.
+4. Visual diagrams as explanatory snapshots.
+
+There are currently two overlapping system-layer visual families:
+
+- `specs/diagrams/architecture-layers*` is the consolidation target.
+- `docs/diagrams/layer-diagram*` is legacy and frozen; do not add new views to it.
+
+Neither family is authoritative until the consolidation target is aligned with
+the measured architecture and the legacy family is retired. In particular,
+the older “dual runtime” wording must not be used to infer equal authority:
+Rust owns native execution; TypeScript provides browser compatibility and
+conformance surfaces.
+
 ## Design System Backbone
 
 - Global style config: [mermaid.config.json](./mermaid.config.json)
@@ -21,22 +43,21 @@ This file is the Map of Content for architecture-grade diagrams in Refarm.
 | Sync | [Sync CRDT Sequence](./sync-crdt.svg) | Peer operation flow and merge semantics | — |
 | Identity | [Identity Nostr Sequence](./identity-nostr.svg) | Identity, signing, relay verification | — |
 | Persistence | [Storage SQLite / OPFS](./storage-sqlite.svg) | Adapter, migrations, and browser storage runtime | — |
+| Persistence | [Record Read Path](./record-read-path.svg) | Newest-first ordering guarantee + truncation ceiling from `nodes` table to `refarm budget observations` | [SOVEREIGN_RECORD_ORDERING.md](../../docs/SOVEREIGN_RECORD_ORDERING.md) |
 | Delivery | [CI Pipeline](./ci-pipeline.svg) | Quality/build/e2e/audit orchestration | [CI_GUIDE.md](./CI_GUIDE.md) |
+| Work control | [Work Dispatch and Streaming](./work-dispatch-streaming.svg) | Current client adapters, HTTP/file ingress coupling, execution, stream projection, transports, and followers | — |
 
 ### Sub-diagrams (focused views via mdt)
 
 Workflow phase sub-views → **[docs/diagrams/WORKFLOW_GUIDE.md](../../docs/diagrams/WORKFLOW_GUIDE.md)**
 
-Architecture layer sub-views (docs) → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
-
-Architecture layer sub-views (spec-focused) → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
+Architecture layer consolidation target → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
 
 | View | Diagram | What it shows |
 |---|---|---|
-| Distros | [layer-diagram--distros.svg](../../docs/diagrams/layer-diagram--distros.svg) | 4 apps and their Tractor connection |
-| Runtime | [layer-diagram--runtime.svg](../../docs/diagrams/layer-diagram--runtime.svg) | Dual-runtime core + WIT + plugin sandbox |
-| Data | [layer-diagram--data.svg](../../docs/diagrams/layer-diagram--data.svg) | Capability contracts → storage/sync/identity adapters |
-| Streams | [layer-diagram--streams.svg](../../docs/diagrams/layer-diagram--streams.svg) | Effort + Stream contracts → transport adapters |
+| Apps and runtime | [architecture-layers--apps-runtime.svg](./architecture-layers--apps-runtime.svg) | 5 apps, native runtime authority, compatibility, WIT, and plugin sandbox |
+| Contracts | [architecture-layers--contracts.svg](./architecture-layers--contracts.svg) | Execution and work dispatch through capability contracts |
+| Adapters | [architecture-layers--adapters.svg](./architecture-layers--adapters.svg) | Transport, storage, sync, and identity implementations |
 
 CI pipeline sub-views → **[CI_GUIDE.md](./CI_GUIDE.md)**
 
@@ -84,11 +105,23 @@ Source: [storage-sqlite.mermaid](./storage-sqlite.mermaid)
 
 ![Storage SQLite / OPFS](./storage-sqlite.svg)
 
+### Record Read Path
+
+Source: [record-read-path.mermaid](./record-read-path.mermaid)
+
+![Record Read Path](./record-read-path.svg)
+
 ### CI Pipeline
 
 Source: [ci-pipeline.mermaid](./ci-pipeline.mermaid)
 
 ![CI Pipeline](./ci-pipeline.svg)
+
+### Work Dispatch and Streaming
+
+Source: [work-dispatch-streaming.mermaid](./work-dispatch-streaming.mermaid)
+
+![Work Dispatch and Streaming](./work-dispatch-streaming.svg)
 
 ## Diagrams Used in docs/
 
@@ -98,7 +131,6 @@ the docs that use them.
 
 | Domain | Diagram | Used in |
 |---|---|---|
-| Architecture | [Layer Diagram](../../docs/diagrams/layer-diagram.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L0 — Persistence](../../docs/diagrams/sovereignty-l0.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L1 — Self-Healing](../../docs/diagrams/sovereignty-l1.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L2 — Pluggable Storage](../../docs/diagrams/sovereignty-l2.svg) | `docs/ARCHITECTURE.md` |

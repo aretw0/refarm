@@ -22,6 +22,7 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 		}),
 		readManifest: async () => ({ permissions: [] }),
 		readRuntimePluginState: async () => null,
+		readInstalledPlugins: () => [],
 		buildInstallReport: async () =>
 			({ ok: true, command: "plugin", operation: "install" }) as never,
 		runBundle: async () => ({ exitCode: 0, stdout: "", stderr: "" }) as never,
@@ -35,12 +36,20 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			filePath,
 			approved: [...new Set(capabilities)].sort(),
 			changed: true,
+			ineffectiveKeys: [],
 		}),
 		persistTrust: (filePath, pluginId, trusted) => ({
 			pluginId,
 			filePath,
 			trusted,
 			trustedPlugins: trusted ? [pluginId] : [],
+			changed: true,
+		}),
+		persistDevelopment: (filePath, pluginId, developing) => ({
+			pluginId,
+			filePath,
+			underDevelopment: developing,
+			declaredAt: developing ? "2026-08-26" : null,
 			changed: true,
 		}),
 		persistRevocation: (filePath, pluginId, capability) => ({
@@ -247,6 +256,42 @@ describe("plugin capability group", () => {
 			expect(extra.unknown).toEqual(["fs:reed"]);
 		});
 
+		it("resolves a DECLARED runtime id to the manifest the store is keyed by", async () => {
+			// ISS-068, measured on the operator's node 2026-08-25. `plugin status` shows
+			// `lsp-code-ops`; the installed directory and `approvedPermissions` are keyed by
+			// `@refarm/lsp-code-ops`; and `plugin list` contains it under NO --origin filter. So
+			// the audit question "what may this loaded plugin do" — and it declares shell:spawn —
+			// had no answer path from any id the node published.
+			const seen: string[] = [];
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async (id: string) => {
+						seen.push(id);
+						return { permissions: ["fs:read"] };
+					},
+				}),
+			);
+			await action(group, "permissions").run(input({ id: "lsp-code-ops" }));
+			expect(seen).toEqual(["@refarm/lsp-code-ops"]);
+		});
+
+		it("passes an UNDECLARED id through untouched, so nothing is guessed", async () => {
+			// The distinction `pluginIdPair` exists to keep: a confidently wrong manifest id is
+			// what put a deny-all on the operator's real node. Only ids this repo DECLARES are
+			// mapped; everything else reaches the store exactly as typed and refuses honestly.
+			const seen: string[] = [];
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async (id: string) => {
+						seen.push(id);
+						return { permissions: [] };
+					},
+				}),
+			);
+			await action(group, "permissions").run(input({ id: "some-third-party" }));
+			expect(seen).toEqual(["some-third-party"]);
+		});
+
 		it("returns an error envelope when the manifest is missing", async () => {
 			const group = createPluginCapabilityGroup(
 				makeDeps({
@@ -403,6 +448,17 @@ describe("plugin capability group", () => {
 			});
 			expect(env.ok).toBe(false);
 			expect((env as { error?: string }).error).toBe("git_clone_failed");
+		});
+
+		it("refuses --subdir for a non-git origin", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "install").run({
+				args: { ref: "@scope/pkg" },
+				options: { subdir: "packages/plugin" },
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("install-subdir-origin");
 		});
 
 		it("rejects --bundled together with a positional ref (ambiguous)", async () => {
@@ -649,6 +705,7 @@ describe("plugin capability group", () => {
 						return {
 							pluginId,
 							filePath,
+							ineffectiveKeys: [],
 							approved: [...capabilities].sort(),
 							changed: true,
 						};
@@ -691,7 +748,7 @@ describe("plugin capability group", () => {
 					readManifest: async () => ({ permissions: ["fs:read"] }),
 					persistApproval: (filePath, pluginId, capabilities) => {
 						persisted = capabilities;
-						return { pluginId, filePath, approved: [], changed: true };
+						return { pluginId, filePath, approved: [], changed: true, ineffectiveKeys: [] };
 					},
 				}),
 			);
@@ -726,6 +783,89 @@ describe("plugin capability group", () => {
 			expect((env as { error?: string }).error).toBe(
 				"plugin-manifest-not-found",
 			);
+		});
+	});
+
+	describe("develop <id> — the third axis, deliberately unsigned", () => {
+		const developInput = (
+			id: string,
+			options: Record<string, string | boolean> = {},
+		) => ({ args: { id }, options, json: true });
+
+		it("declares a plugin under development via the injected primitive", async () => {
+			let seen: { filePath: string; pluginId: string; developing: boolean } | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistDevelopment: (filePath, pluginId, developing) => {
+						seen = { filePath, pluginId, developing };
+						return {
+							pluginId,
+							filePath,
+							underDevelopment: developing,
+							declaredAt: "2026-08-26",
+							changed: true,
+						};
+					},
+				}),
+			);
+			const env = await action(group, "develop").run(developInput("@refarm/lsp-code-ops"));
+			expect(env.ok).toBe(true);
+			expect(env.operation).toBe("develop");
+			expect(seen).toEqual({
+				filePath: expect.any(String),
+				pluginId: "@refarm/lsp-code-ops",
+				developing: true,
+			});
+			const x = env as unknown as {
+				pluginId: string;
+				underDevelopment: boolean;
+				declaredAt: string | null;
+				changed: boolean;
+			};
+			expect(x.underDevelopment).toBe(true);
+			expect(x.declaredAt).toBe("2026-08-26");
+			expect(x.changed).toBe(true);
+		});
+
+		it("--undevelop withdraws the declaration", async () => {
+			let developing: boolean | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistDevelopment: (filePath, pluginId, dev) => {
+						developing = dev;
+						return {
+							pluginId,
+							filePath,
+							underDevelopment: dev,
+							declaredAt: dev ? "2026-08-26" : null,
+							changed: true,
+						};
+					},
+				}),
+			);
+			const env = await action(group, "develop").run(
+				developInput("@refarm/lsp-code-ops", { undevelop: true }),
+			);
+			expect(env.ok).toBe(true);
+			expect(developing).toBe(false);
+			const x = env as unknown as { underDevelopment: boolean; declaredAt: string | null };
+			expect(x.underDevelopment).toBe(false);
+			expect(x.declaredAt).toBeNull();
+		});
+
+		it("rejects an unknown scope", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "develop").run(
+				developInput("@x/p", { scope: "galaxy" }),
+			);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("unknown-scope");
+		});
+
+		it("is headless: no prompt, decided entirely by --undevelop", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const descriptor = action(group, "develop");
+			expect(descriptor.options?.some((o) => o.name === "undevelop")).toBe(true);
 		});
 	});
 
@@ -803,6 +943,106 @@ describe("plugin capability group", () => {
 			);
 			const env = await action(group, "revoke").run(input("@x/gone"));
 			expect(env.ok).toBe(true);
+		});
+	});
+
+	describe("status reports five facts, and they can disagree", () => {
+		it("shows a tree that is installed and not loaded", async () => {
+			// THE TRAP: an assertion that `installed` and `loaded` are equal PASSED under the old
+			// code because they were one variable. So this constructs disagreement and asserts it.
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readRuntimePluginState: async () => ({
+						requested: [{ id: "agent", path: "/p/agent.wasm", loaded: true, because: null }],
+						loaded: ["agent"],
+						defaultResponder: "agent",
+					grants: {},
+					}),
+					readInstalledPlugins: () => [
+						{ manifestId: "@refarm/agent", runtimeId: "agent", dir: "/p/refarm_agent", integrity: "matches" },
+						{ manifestId: "@refarm/ghost", runtimeId: "ghost", dir: "/p/refarm_ghost", integrity: "absent" },
+					],
+				}),
+			);
+
+			const env = (await action(group, "status").run(input({}))) as unknown as {
+				plugins: Array<{ runtimeId: string; installed: boolean; loaded: boolean }>;
+			};
+			const ghost = env.plugins.find((p) => p.runtimeId === "ghost");
+
+			expect(ghost).toBeDefined();
+			expect(ghost?.installed).toBe(true);
+			expect(ghost?.loaded).toBe(false);
+		});
+
+		it("keeps two installed trees that share a runtime id as two separate rows, attached by path", async () => {
+			// Measured on the operator's real node: `~/.refarm/plugins/refarm_agent/` and
+			// `~/.refarm/plugins/@refarm/agent/` are both real, both name `@refarm/agent`, and
+			// one carries a mismatching integrity claim. A merge keyed by runtime id would
+			// silently pick one tree and hide the other — exactly what this phase exists to
+			// surface, so the composed row set must keep both, distinguished by `dir`, and must
+			// attach the host's requested/loaded facts to the tree it actually handed a path
+			// to — not to whichever tree happens to share its runtime id.
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readRuntimePluginState: async () => ({
+						requested: [
+							{ id: "agent", path: "/p/refarm_agent/plugin.wasm", loaded: true, because: null },
+						],
+						loaded: ["agent"],
+						defaultResponder: "agent",
+					grants: {},
+					}),
+					readInstalledPlugins: () => [
+						{
+							manifestId: "@refarm/agent",
+							runtimeId: "agent",
+							dir: "/p/refarm_agent",
+							integrity: "matches",
+						},
+						{
+							manifestId: "@refarm/agent",
+							runtimeId: "agent",
+							dir: "/p/@refarm/agent",
+							integrity: "mismatch",
+						},
+					],
+				}),
+			);
+
+			const env = (await action(group, "status").run(input({}))) as unknown as {
+				plugins: Array<{
+					runtimeId: string;
+					manifestId: string | null;
+					dir: string | null;
+					requested: boolean;
+					loaded: boolean;
+					installed: boolean;
+					integrity: string | null;
+				}>;
+			};
+
+			const rows = env.plugins.filter((p) => p.runtimeId === "agent");
+			expect(rows).toHaveLength(2); // NOT collapsed into one row
+
+			const live = rows.find((p) => p.dir === "/p/refarm_agent");
+			const stale = rows.find((p) => p.dir === "/p/@refarm/agent");
+
+			// The daemon was handed the LIVE tree's path — only that row shows requested/loaded.
+			expect(live).toMatchObject({
+				requested: true,
+				loaded: true,
+				installed: true,
+				integrity: "matches",
+			});
+			// The stale tree sits beside it, installed but never handed to the daemon: sharing
+			// a runtime id with the live tree does not let it borrow the live tree's facts.
+			expect(stale).toMatchObject({
+				requested: false,
+				loaded: false,
+				installed: true,
+				integrity: "mismatch",
+			});
 		});
 	});
 });

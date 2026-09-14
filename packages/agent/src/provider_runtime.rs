@@ -20,6 +20,7 @@ mod loop_dispatch_tests;
 mod loop_limits;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_plan_builders;
+mod loop_progress;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_anthropic;
 #[cfg(any(test, target_arch = "wasm32"))]
@@ -90,6 +91,17 @@ pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState};
 pub(crate) use loop_runner_types::ProviderRunnerCommonConfig;
 
 pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
+/// Cleared at the top of every dispatch (`runtime/react_loop.rs`), on every
+/// target — see `loop_progress.rs` for why a stale pair is worse than none.
+pub(crate) use loop_progress::clear_loop_progress;
+/// The step pair (`4/25`) of the dispatch that just ran, read by the wasm-only
+/// `prompt_handler` and by the native tests that pin it.
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use loop_progress::current_loop_progress;
+/// Named only where the pair is asserted on; `prompt_handler` maps straight off
+/// the `Option` and never spells the type.
+#[cfg(test)]
+pub(crate) use loop_progress::LoopProgress;
 #[cfg(test)]
 pub(crate) use loop_limits::tool_loop_max_iter;
 #[cfg(test)]

@@ -11,6 +11,10 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
 import { refarmCommand } from "../brand.js";
+import {
+	PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+	SOW_CLOUDFLARE_COMMAND,
+} from "./provision-handoffs.js";
 
 interface GuideOptions {
 	json?: boolean;
@@ -46,7 +50,16 @@ interface GuideReport {
 	command: "guide";
 	operation: "audit";
 	outputPath: string;
+	/**
+	 * Did the AUDIT run? It always does — `guide` inspects local setup and reports what it
+	 * found, so `ok` is true whenever the report was produced. It used to be
+	 * `nextActions.length === 0`, i.e. the verdict on the SUBJECT, which made
+	 * `refarm guide --json` look like a failure on a machine that simply has not configured
+	 * Cloudflare yet. See `ready` below, and `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+	 */
 	ok: boolean;
+	/** The subject state: every audited item is configured. THIS is the "answer was yes". */
+	ready: boolean;
 	checks: GuideCheck[];
 	nextAction: string | null;
 	nextActions: string[];
@@ -92,7 +105,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 				"  $ refarm guide",
 				"  $ refarm guide --json",
 				"  $ refarm sow",
-				"  $ refarm sow --cloudflare",
+				`  $ ${SOW_CLOUDFLARE_COMMAND}`,
 				"  $ refarm model current",
 				"  $ refarm health",
 				"",
@@ -151,13 +164,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 					ok: Boolean(infraTokens.CLOUDFLARE_API_TOKEN),
 					status: infraTokens.CLOUDFLARE_API_TOKEN ? "ready" : "missing",
 					action: "Configure Cloudflare credentials interactively.",
-					actionCommand: refarmCommand([
-						"provision",
-						"cloudflare",
-						"turbo-cache",
-						"--dry-run",
-						"--json",
-					]),
+					actionCommand: PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
 				},
 				{
 					id: "brand-config",
@@ -176,7 +183,8 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 				command: "guide",
 				operation: "audit",
 				outputPath: "refarm-audit.md",
-				ok: nextActions.length === 0,
+				ok: true,
+				ready: nextActions.length === 0,
 				checks,
 				nextAction: nextActions[0] ?? null,
 				nextActions,

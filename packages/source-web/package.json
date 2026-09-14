@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/source-web",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Authenticated web snapshot adapter for the source:v1 capability.",
 	"type": "module",

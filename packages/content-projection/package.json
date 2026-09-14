@@ -1,6 +1,7 @@
 {
   "name": "@refarm.dev/content-projection",
   "version": "0.1.0",
+  "repository": "https://github.com/aretw0/refarm.git",
   "private": false,
   "description": "Markdown/MDX content projection helpers for records:v1.",
   "type": "module",

@@ -1,3 +1,4 @@
+import { defaultProviderModelRef, defaultScopedModelRef } from "@refarm.dev/config";
 import { describe, expect, it } from "vitest";
 import { CHAT_HELP_TEXT, parseChatLine } from "./chat-repl.js";
 
@@ -301,9 +302,18 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
 		expect(CHAT_HELP_TEXT).toContain("/reload agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
-		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
-		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
-		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
+		// DERIVED, never retyped. `chat-repl.ts` builds these three lines from
+		// `defaultProviderModelRef`/`defaultScopedModelRef`; hardcoding their output here made
+		// this test a second, quieter copy of the model catalogue, and it went stale the moment
+		// the openai default moved (it was asserting gpt-5.5 while the help rendered
+		// gpt-5.6-sol). What this test is FOR is that the line exists and names the right verb —
+		// which model is the default is the catalogue's business and has its own drift guard
+		// (scripts/ci/check-model-defaults-drift.mjs).
+		expect(CHAT_HELP_TEXT).toContain(`/provider ${defaultProviderModelRef("openai")}`);
+		expect(CHAT_HELP_TEXT).toContain(`/model worker ${defaultScopedModelRef("worker", "openai")}`);
+		expect(CHAT_HELP_TEXT).toContain(
+			`/model monitor ${defaultScopedModelRef("monitor", "openai")}`,
+		);
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");

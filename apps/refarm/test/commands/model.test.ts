@@ -1,3 +1,4 @@
+import type { ModelAccountDescriptor } from "@refarm.dev/model-account-contract-v1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import {
@@ -6,9 +7,14 @@ import {
 } from "../../src/commands/model-capability.js";
 import {
 	buildCurrentModelStatus,
+	buildModelDoctorEnvelope,
 	buildModelDoctorStatus,
+	credentialLifetime,
+	formatCredentialLifetime,
+	formatModelDoctorFromStatus,
 	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
+	type ModelTokens,
 } from "../../src/commands/model.js";
 
 /**
@@ -106,8 +112,15 @@ describe("modelCommand", () => {
 		expect(output).toContain("openai/gpt-5.5");
 		expect(output).toContain("key env:  OPENAI_API_KEY");
 		expect(output).toContain("key:      missing (run refarm sow)");
+		expect(output).toContain("context:  node");
+		expect(output).toContain("binding:  detached (explicit)");
+		expect(output).toContain("state:    node-owned");
+		expect(output).toContain("creds:    node");
+		expect(output).toContain("runtime:  node");
+		expect(output).toContain("home:     ");
+		expect(output).toContain("store:    ");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
-		expect(output).toContain("monitor:  openai/gpt-5.5");
+		expect(output).toContain("monitor:  openai/gpt-5.6-sol");
 
 		logSpy.mockRestore();
 	});
@@ -342,6 +355,16 @@ describe("modelCommand", () => {
 			command: string;
 			operation: string;
 			current: { ref: string };
+			context: {
+				mode: string;
+				binding: { kind: string; origin: string };
+				state: { policy: string; homeRef: string };
+				credentials: { policy: string; storeRef: string };
+				runtime: { policy: string };
+				sovereignHome: string;
+				credentialStoreHome: string;
+				homesAligned: boolean;
+			};
 			routes: { default: string; worker: string; monitor: string };
 			routeCredentials: {
 				default: { state: string };
@@ -370,9 +393,17 @@ describe("modelCommand", () => {
 		expect(payload.command).toBe("model");
 		expect(payload.operation).toBe("current");
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
+		expect(payload.context.mode).toBe("node");
+		expect(payload.context.binding.kind).toBe("detached");
+		expect(payload.context.state.policy).toBe("node-owned");
+		expect(payload.context.credentials.policy).toBe("node");
+		expect(payload.context.runtime.policy).toBe("node");
+		expect(payload.context.sovereignHome.length).toBeGreaterThan(0);
+		expect(payload.context.credentialStoreHome.length).toBeGreaterThan(0);
+		expect(typeof payload.context.homesAligned).toBe("boolean");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
 		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
-		expect(payload.routes.monitor).toBe("openai/gpt-5.5");
+		expect(payload.routes.monitor).toBe("openai/gpt-5.6-sol");
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
 		expect(payload.credential.state).toBe("missing");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
@@ -400,7 +431,7 @@ describe("modelCommand", () => {
 			setWorkerModel:
 				"refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
 			setMonitorModel:
-				"refarm model set --scope monitor 'openai/gpt-5.5' --json",
+				"refarm model set --scope monitor 'openai/gpt-5.6-sol' --json",
 		});
 
 		logSpy.mockRestore();
@@ -763,7 +794,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("provider: ollama");
 		expect(output).toContain("worker:   ollama/llama3.2");
 		expect(output).toContain("monitor:  ollama/llama3.2");
-		expect(output).toContain("openai default: openai/gpt-5.5");
+		expect(output).toContain("openai default: openai/gpt-5.6-sol");
 
 		logSpy.mockRestore();
 	});
@@ -888,7 +919,7 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("current: openai/gpt-5.5");
+		expect(output).toContain("current: openai/gpt-5.6-sol");
 		expect(output).not.toContain("base url: http://127.0.0.1:8000");
 
 		logSpy.mockRestore();
@@ -942,7 +973,7 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("fallback: anthropic/claude-sonnet-4-6");
+		expect(output).toContain("fallback: anthropic/claude-sonnet-5");
 		expect(output).not.toContain("anthropic/qwen2.5-coder");
 
 		logSpy.mockRestore();
@@ -1038,9 +1069,9 @@ describe("modelCommand", () => {
 		expect(payload.operation).toBe("providers");
 		expect(payload.providers).toContainEqual({
 			provider: "openai",
-			defaultModel: "gpt-5.5",
+			defaultModel: "gpt-5.6-sol",
 			workerModel: "gpt-5.3-codex-spark",
-			monitorModel: "gpt-5.5",
+			monitorModel: "gpt-5.6-sol",
 			credentialEnv: "OPENAI_API_KEY",
 		});
 		expect(payload.providers).toContainEqual({
@@ -1611,5 +1642,370 @@ describe("modelCommand", () => {
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
+	});
+});
+
+describe("the credential's own clock, reported beside the probe", () => {
+	/**
+	 * ISS-081, measured on the operator's node 2026-08-12: the `openai-codex` token had expired
+	 * FIVE DAYS earlier and nothing in this repository said so. `model doctor` probed whether the
+	 * endpoint answers, which is a different question — an expired credential and an unreachable
+	 * host are two facts with two remedies, and a doctor reporting only the second sends an
+	 * operator to debug a network.
+	 */
+	const NOW = 1_786_500_000_000;
+	const tokensWith = (expires: unknown) =>
+		({ oauthCredentials: { "openai-codex": { access: "a", refresh: "r", expires } } }) as never;
+
+	it("reads an expired credential as expired, with how long it has been so", () => {
+		const lifetime = credentialLifetime("openai-codex", tokensWith(NOW - 86_400_000 * 5), NOW);
+		expect(lifetime).toMatchObject({ state: "expired", expiredForMs: 86_400_000 * 5 });
+	});
+
+	it("the boundary is the instant itself — expiring NOW is expired", () => {
+		expect(credentialLifetime("openai-codex", tokensWith(NOW), NOW).state).toBe("expired");
+		expect(credentialLifetime("openai-codex", tokensWith(NOW + 1), NOW).state).toBe("valid");
+	});
+
+	it("a provider with no OAuth entry is UNKNOWN, never valid", () => {
+		// The shape this repository keeps removing: an absence rendered as a reassurance. A
+		// keyless local provider has no credential to be valid.
+		expect(credentialLifetime("ollama", tokensWith(NOW + 1), NOW)).toEqual({
+			state: "unknown",
+			reason: "not-oauth",
+		});
+	});
+
+	it("an OAuth entry with no expiry is UNKNOWN, not valid forever", () => {
+		expect(credentialLifetime("openai-codex", tokensWith(undefined), NOW)).toEqual({
+			state: "unknown",
+			reason: "no-expiry-recorded",
+		});
+	});
+
+	it("prints a line for a fact and NOTHING for an unknown", () => {
+		// A doctor that announces "credential: unknown" for every keyless provider teaches an
+		// operator to skim the line — and the day it says EXPIRED they skim that too.
+		expect(formatCredentialLifetime({ state: "unknown", reason: "not-oauth" })).toBeNull();
+		expect(
+			formatCredentialLifetime({ state: "expired", expiresAt: NOW, expiredForMs: 86_400_000 * 5 }),
+		).toContain("EXPIRED");
+		expect(
+			formatCredentialLifetime({ state: "valid", expiresAt: NOW, remainingMs: 86_400_000 * 30 }),
+		).toContain("30");
+	});
+
+	it("warns before it fails — three days out reads differently from thirty", () => {
+		const soon = formatCredentialLifetime({ state: "valid", expiresAt: NOW, remainingMs: 86_400_000 * 2 });
+		expect(soon).toContain("expires in");
+	});
+});
+
+/**
+ * A MALFORMED ROUTE IS NOT A NETWORK FAULT (ISS-121).
+ *
+ * Measured on the operator's own node 2026-08-12: `tokens.modelBaseUrl` held
+ * `__refarm_ancestor_option_probe__` — a conformance test's sentinel that had leaked into the
+ * silo and sat there for over a day — and `model doctor` reported `unreachable`. The evidence
+ * was already in the payload (`ERR_INVALID_URL`) and the VERDICT contradicted it. Whoever read
+ * that line went to debug a network that was fine.
+ *
+ * These pin the three things that had to change together: the verdict, the sentence, and the
+ * remedy. A doctor that names the fault correctly but still hands back `ollama serve` has moved
+ * the operator's wasted hour, not removed it.
+ */
+describe("endpoint-malformed", () => {
+	const previousBaseUrl = process.env.MODEL_BASE_URL;
+	const previousKey = process.env.OPENAI_API_KEY;
+
+	beforeEach(() => {
+		process.env.OPENAI_API_KEY = "sk-test-key";
+	});
+
+	afterEach(() => {
+		if (previousBaseUrl === undefined) delete process.env.MODEL_BASE_URL;
+		else process.env.MODEL_BASE_URL = previousBaseUrl;
+		if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+		else process.env.OPENAI_API_KEY = previousKey;
+	});
+
+	/** The real fetch, so the URL parse failure is Node's own and not a mock's idea of one. */
+	async function doctorWithBaseUrl(baseUrl: string) {
+		return buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelBaseUrl: baseUrl },
+			{ isContainer: () => false },
+		);
+	}
+
+	it("names an unparseable endpoint as malformed, not as unreachable", async () => {
+		const status = await doctorWithBaseUrl("__refarm_ancestor_option_probe__");
+		expect(status.providerProbe.reason).toBe("endpoint-malformed");
+		expect(status.providerProbe.ready).toBe(false);
+		// The evidence stays: the verdict changed, the measurement did not.
+		expect(status.providerProbe.error).toMatch(/ERR_INVALID_URL|Failed to parse URL/u);
+	});
+
+	it("still reports a genuinely dead host as unreachable", async () => {
+		// The other side of the boundary. Widening `endpoint-malformed` to swallow connection
+		// failures would trade one mislabel for its mirror image.
+		const status = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelBaseUrl: "http://127.0.0.1:1" },
+			{
+				fetch: vi.fn().mockRejectedValue(
+					Object.assign(new Error("fetch failed"), { cause: { code: "ECONNREFUSED" } }),
+				) as unknown as typeof fetch,
+				isContainer: () => false,
+			},
+		);
+		expect(status.providerProbe.reason).toBe("unreachable");
+	});
+
+	it("hands back the remedy that CAN work — clearing the silo's value", async () => {
+		const status = await doctorWithBaseUrl("not a url");
+		expect(status.baseUrlSource).toBe("silo");
+		const text = formatModelDoctorFromStatus(status);
+		expect(text).toContain("refarm model base-url off --json");
+		// And NOT the local-runtime start command: no server was ever the problem.
+		expect(text).not.toContain("ollama serve");
+	});
+
+	it("does not offer a CLI remedy for a value the SHELL exported", async () => {
+		// `model base-url off` deletes the persisted token. With MODEL_BASE_URL set, that command
+		// would report success and the malformed endpoint would survive into the next run — a
+		// remedy that measurably does nothing is worse than none, because it looks like progress.
+		process.env.MODEL_BASE_URL = "__refarm_ancestor_option_probe__";
+		const status = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(status.baseUrlSource).toBe("env");
+		const text = formatModelDoctorFromStatus(status);
+		expect(text).toContain("unset MODEL_BASE_URL");
+		expect(text).not.toContain("refarm model base-url off");
+	});
+
+	it("says in words that the fault is configuration, and where it lives", async () => {
+		// The verdict is a vocabulary word; this is the line an operator actually reads.
+		const silo = await doctorWithBaseUrl("::::");
+		expect(formatModelDoctorFromStatus(silo)).toContain("stored configuration");
+		process.env.MODEL_BASE_URL = "::::";
+		const env = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(formatModelDoctorFromStatus(env)).toContain("environment");
+	});
+
+	it("gives the MACHINE reader its own diagnostic, not the network one", async () => {
+		// `recommendations[].diagnostic` is what an automated consumer dispatches on. Leaving it as
+		// `model-provider-unreachable` would keep the original defect alive on the surface that
+		// acts without a human reading the sentence beside it.
+		const silo = await doctorWithBaseUrl("__refarm_ancestor_option_probe__");
+		expect(silo.recommendations?.[0]).toMatchObject({
+			diagnostic: "model-endpoint-malformed",
+			severity: "failure",
+			command: "refarm model base-url off --json",
+		});
+		expect(silo.recommendations?.[0]?.summary).toContain("not a URL");
+
+		process.env.MODEL_BASE_URL = "__refarm_ancestor_option_probe__";
+		const env = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(env.recommendations?.[0]?.command).toBe("unset MODEL_BASE_URL");
+	});
+
+	it("records baseUrlSource as absent when there is no base URL at all", async () => {
+		// The third state. `undefined` here is not "silo with an empty value" — it is the case
+		// where nothing configured an endpoint, which is how the provider's built-in one applies.
+		const status = await buildCurrentModelStatus({ modelProvider: "openai", modelId: "gpt-5.5" });
+		expect(status.baseUrl).toBeUndefined();
+		expect(status.baseUrlSource).toBeUndefined();
+	});
+});
+
+/**
+ * THE CATALOG ANSWERS WHAT THE FLAT TOKEN MAP CANNOT SEE.
+ *
+ * Measured on the operator's node 2026-08-23. `refarm credential quota` reached GitHub with two
+ * Copilot seats and came back with live plan data; in the same minute `refarm model current`
+ * reported `unresolved` on all three routes and `refarm model doctor` prescribed `ollama serve`
+ * for a `github-copilot` route.
+ *
+ * `modelCredentialStatus` (packages/config) is NOT the defect and is not changed: it does no I/O,
+ * it says `unresolved` precisely because it cannot see the `model` namespace, and its own comment
+ * names the remedy — "a caller that can consult the account catalog gets a better answer by asking
+ * the catalog, not by reinterpreting this boolean." These are the callers that can, doing so.
+ */
+describe("the catalog answers what the flat token map cannot see", () => {
+	const seat = (over: Partial<ModelAccountDescriptor> = {}): ModelAccountDescriptor => ({
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy",
+		revision: "sha256:test",
+		...over,
+	});
+
+	const copilotRoute = { modelProvider: "github-copilot", modelId: "gpt-4o" } as ModelTokens;
+
+	it("an authorized healthy seat resolves the route the flat map calls unresolved", () => {
+		// The negative control: with no catalog handed in, today's honest "I cannot see" stands.
+		expect(buildCurrentModelStatus(copilotRoute).credential.state).toBe("unresolved");
+
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("account");
+		expect(status.credential.status).toContain("corporativo");
+	});
+
+	it("a seat this node holds and has NOT authorized is not a missing credential", () => {
+		// Two absences with two different remedies. Reading "you never declared it" as "there is
+		// none" is the same substitution this whole block exists to remove, one layer down.
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "undeclared" },
+		});
+
+		expect(status.credential.state).toBe("unauthorized");
+	});
+
+	it("a catalog holding nothing for the provider is measured absence, not doubt", () => {
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat({ provider: "openai-codex", alias: "account-2" })],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("missing");
+	});
+
+	it("every route is resolved, not only the default", () => {
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.routeCredentials.default.state).toBe("account");
+		expect(status.routeCredentials.worker.state).toBe("account");
+		expect(status.routeCredentials.monitor.state).toBe("account");
+	});
+
+	it("an incomplete seat is an absence, not a doubt — its secret is gone", () => {
+		// `not.toBe("account")` would pass today without the feature, which proves nothing. The
+		// honest answer names the same remedy as holding nothing at all: `refarm sow` writes the
+		// secret in both cases, so both are `missing` and `credential list` is where the
+		// descriptor-vs-nothing distinction is read.
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat({ health: "incomplete" })],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("missing");
+	});
+});
+
+/**
+ * THE DOCTOR'S OWN CLOCK LOOKS IN THE LEGACY MAP ONLY.
+ *
+ * `credentialLifetime`'s comment claims it is "reached through the account contract, so expiry is
+ * read from wherever the credential actually lives". Measured 2026-08-23: it resolves its
+ * descriptor from `readLegacyCredentials(tokens)` — the flat map — and every account written since
+ * 2026-08-14 lives in the `model` namespace instead. On the operator's node `refarm model doctor`
+ * answered `{state: "unknown", reason: "not-oauth"}` for an OAuth credential whose stored blob
+ * carried `expires`, ninety minutes before it lapsed.
+ *
+ * The describe block above this one is not wrong and is not changed: its fixture is the legacy
+ * shape, which still exists and must keep working. It simply never asked the other question.
+ */
+describe("the credential's clock reads the namespace too", () => {
+	const NOW = 1_786_500_000_000;
+	const namespaced = {
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" as const },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy" as const,
+		revision: "sha256:test",
+	} satisfies ModelAccountDescriptor;
+
+	const catalogWith = (expires: unknown) => ({
+		accounts: [namespaced],
+		authorization: { scope: "all" as const },
+		credentials: new Map<string, unknown>([
+			[namespaced.credentialId, { access: "a", refresh: "r", expires }],
+		]),
+	});
+
+	it("a namespaced credential with an expiry is read, not called not-oauth", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW, catalogWith(NOW + 86_400_000)))
+			.toMatchObject({ state: "valid", remainingMs: 86_400_000 });
+	});
+
+	it("a namespaced credential already past its expiry reads as expired", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW, catalogWith(NOW - 3_600_000)))
+			.toMatchObject({ state: "expired", expiredForMs: 3_600_000 });
+	});
+
+	it("without a catalog the answer is unchanged — this adds a reader, it does not move one", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW)).toEqual({
+			state: "unknown",
+			reason: "not-oauth",
+		});
+	});
+});
+
+/**
+ * A REMOTE PROVIDER HAS NO LOCAL RUNTIME TO START.
+ *
+ * Measured on the operator's node 2026-08-23, with a healthy `github-copilot` route:
+ *
+ *     refarm model doctor --json
+ *       providerProbe.baseUrl: "http://localhost:11434"
+ *       nextAction: "ollama serve"
+ *
+ * `PROVIDER_DOCTOR_PROFILES` already knows this — github-copilot takes `DEFAULT_REMOTE_PROFILE`,
+ * whose `startCommand` is absent precisely because there is nothing to start. The knowledge was
+ * in the table and the recovery list pushed `handoffs.startOllama` unconditionally, past it.
+ */
+describe("the doctor's remedy matches the provider it is talking about", () => {
+	const failingFetch = () => vi.fn().mockRejectedValue(new Error("unreachable")) as never;
+
+	it("a remote provider is never told to start a local runtime", async () => {
+		// `modelBaseUrl` REPRODUCES THE NODE, and without it this test passes vacuously: an absent
+		// endpoint sends `resolveProviderProbe` to the runtime and the probe never reports
+		// `ready: false`, so the recovery list is empty and asserting on it proves nothing. On the
+		// operator's node a base URL persisted while the route was ollama was still being applied
+		// to a github-copilot route, which is what got pinged and what failed.
+		const envelope = await buildModelDoctorEnvelope(
+			{
+				modelProvider: "github-copilot",
+				modelId: "gpt-4o",
+				modelBaseUrl: "http://localhost:11434",
+			} as ModelTokens,
+			{ fetch: failingFetch(), isContainer: () => false },
+		);
+
+		expect((envelope as { providerProbe: { ready: boolean | null } }).providerProbe.ready).toBe(
+			false,
+		);
+
+		expect((envelope as { nextActions?: string[] }).nextActions).not.toContain("ollama serve");
+		expect((envelope as { nextAction?: string | null }).nextAction).not.toBe("ollama serve");
+	});
+
+	it("ollama still gets its start command — this narrows the advice, it does not delete it", async () => {
+		const envelope = await buildModelDoctorEnvelope(
+			{ modelProvider: "ollama", modelId: "llama3.2" } as ModelTokens,
+			{ fetch: failingFetch(), isContainer: () => false },
+		);
+
+		expect((envelope as { nextActions?: string[] }).nextActions).toContain("ollama serve");
 	});
 });

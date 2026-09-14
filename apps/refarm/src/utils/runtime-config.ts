@@ -9,8 +9,8 @@ import {
 	type RuntimeEngineMode,
 } from "@refarm.dev/runtime";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { resolveRefarmHome } from "./refarm-home.js";
 
 export type AutostartMode = RuntimeAutostartMode;
 export type TractorEngineMode = RuntimeEngineMode;
@@ -37,9 +37,14 @@ interface RefarmRuntimeConfig extends Record<string, unknown> {
 
 function configPaths(deps: RuntimeConfigDeps, local = false): string[] {
 	const cwd = deps.cwd ?? process.cwd();
-	const home = deps.home ?? os.homedir();
 	if (local) return [path.join(cwd, ".refarm", "config.json")];
-	return [path.join(home, ".refarm", "config.json"), path.join(cwd, ".refarm", "config.json")];
+	return [path.join(operatorConfigRoot(deps), "config.json"), path.join(cwd, ".refarm", "config.json")];
+}
+
+function operatorConfigRoot(deps: RuntimeConfigDeps): string {
+	return deps.home
+		? path.join(deps.home, ".refarm")
+		: resolveRefarmHome(deps.env as NodeJS.ProcessEnv | undefined);
 }
 
 function readConfig(filePath: string): RefarmRuntimeConfig {
@@ -201,10 +206,9 @@ function homeConfigFallback(
 	options: { local?: boolean },
 ): RuntimeConfigLayer[] {
 	if (options.local) return [];
-	const home = deps.home ?? os.homedir();
 	return [
 		{
-			value: readConfig(path.join(home, ".refarm", "config.json")) as Record<string, unknown>,
+			value: readConfig(path.join(operatorConfigRoot(deps), "config.json")) as Record<string, unknown>,
 			source: "home",
 		},
 	];

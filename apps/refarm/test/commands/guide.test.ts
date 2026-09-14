@@ -107,6 +107,7 @@ describe("guideCommand", () => {
       operation: string;
       outputPath: string;
       ok: boolean;
+      ready: boolean;
       checks: Array<{ id: string; ok: boolean; status: string; actionCommand?: string }>;
       nextAction: string | null;
       nextActions: string[];
@@ -117,7 +118,11 @@ describe("guideCommand", () => {
       command: "guide",
       operation: "audit",
       outputPath: "refarm-audit.md",
-      ok: false,
+      // The audit RAN, so `ok` is true. Whether every item is configured is the subject
+      // state, and it now has its own field — `ok:false` here used to make an unconfigured
+      // Cloudflare look like a broken command.
+      ok: true,
+      ready: false,
     });
     expect(payload.checks).toEqual(
       expect.arrayContaining([

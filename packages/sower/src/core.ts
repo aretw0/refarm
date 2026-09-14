@@ -4,6 +4,18 @@ import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * This package is `"type": "module"`, and ESM has no `__dirname`. Emitting one
+ * made Node unable to decide whether the file was a module or CommonJS —
+ * `ERR_AMBIGUOUS_MODULE_SYNTAX` — which threw inside `new SowerCore` and so
+ * broke `refarm init` entirely: the first command anyone runs.
+ *
+ * `import.meta.url` is the ESM answer, and it is resolved once here rather than
+ * inline so the next module-scope path lookup has an obvious thing to reuse.
+ */
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * SowerCore: public onboarding, workspace scaffold, and import helpers.
@@ -48,7 +60,7 @@ export class SowerCore {
 	private readonly templatesRoot: string;
 
 	constructor(options: SowerCoreOptions = {}) {
-		this.templatesRoot = options.templatesRoot ?? path.resolve(__dirname, "../../../templates");
+		this.templatesRoot = options.templatesRoot ?? path.resolve(MODULE_DIR, "../../../templates");
 	}
 
 	/**

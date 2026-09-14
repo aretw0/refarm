@@ -2,6 +2,58 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Every input source converges on one declaration
+
+**Date**: 2026-08-05
+**Status**: Accepted (operator, 2026-08-05)
+**Spec**: [Which sovereign state is active](superpowers/specs/2026-08-05-which-sovereign-state-is-active-design.md)
+**References**: [`DECLARE_ONCE_INVARIANT.md`](DECLARE_ONCE_INVARIANT.md),
+[Router decides from the catalog](superpowers/specs/2026-08-04-router-decides-from-the-catalog-design.md) D1
+
+**Decision**: Data reaches the agent at runtime — by injection or from the graph — never by the agent
+reading disk. A file is a legitimate PRODUCER of a declaration, never a coupling: nothing downstream
+may know whether a declaration arrived from a file, from the graph, or by injection. This is
+`DECLARE_ONCE_INVARIANT` mirrored — that invariant says one declaration projects to every output
+surface; this says every input source converges on one declaration.
+
+**The other direction, and it is the same decision**: every declaration must EJECT back to a file.
+Import without export is lock-in wearing another name, and the two halves are only sound together.
+Refarm is to be radically extensible and ejectable: anything the system holds can be written out as a
+file the operator keeps, which makes the graph a CACHE rather than a destination — always
+reconstitutable, never a place work goes in and cannot come out of. This is the sovereignty claim in
+its checkable form. An implementation that adds an input producer without the matching export is
+incomplete, not merely unfinished.
+
+**Consequences**: an operator who keeps local files and has assimilated nothing into the graph stays
+supported, and compatibility with pi's on-disk structure remains possible, without either becoming a
+runtime dependency. The `.pi/agents/**` and `.pi/monitors/**` files in this repository are residue
+from working here through pi; they stay for compatibility and Refarm does not couple to them. The
+open question "where does a node-scoped automation live?" resolves to the graph, with
+`.project/automations.json` as a project-scoped producer rather than the home of node-scoped state.
+
+**Origin**: the operator stated the grain directly — "temos essa teimosia de sempre buscar fazer
+coisas em runtime sem precisar ler do disco" — then corrected an over-reading of it, declining to
+trade file support away for purity.
+
+## Node context, workspace hatch, and sovereign home resolution
+
+**Date**: 2026-08-04
+**Status**: Proposed
+**ADR**: [ADR-094](../specs/ADRs/ADR-094-node-context-workspace-hatch-and-sovereign-home-resolution.md)
+**References**: [Workspace Namespace Policy (ADR-071)](../specs/ADRs/ADR-071-workspace-namespace-policy.md),
+[Silo storage and identity separation (ADR-076)](../specs/ADRs/ADR-076-silo-storage-identity-closure-separation.md),
+[Brand-agnostic packages (ADR-087)](../specs/ADRs/ADR-087-brand-agnostic-packages.md),
+[Node context and workspace hatch design](../docs/superpowers/specs/2026-08-04-node-context-workspace-hatch-design.md),
+[Declared node base design](../docs/superpowers/specs/2026-08-03-declared-node-base-design.md)
+
+**Decision**: Refarm must model operator context explicitly. `workspaceId` is target identity, not
+implicit authority over sovereign home, credential store, or runtime namespace. The system introduces
+an explicit node-context descriptor and a declarative workspace hatch bridge. Runtime and model flows
+must report effective context and surface divergence diagnostics instead of silently guessing from cwd.
+
+**Origin**: repeated operational mismatch where credential setup and runtime startup observed different
+homes/stores, creating "configured" versus "not usable" outcomes for the same operator workflow.
+
 ## Work 3 requirements supply activation
 
 **Date**: 2026-06-30
@@ -427,6 +479,9 @@ _Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcemen
 | Credentials verification policy | ADR-079 | Core | Proposed | — | `specs/ADRs/ADR-079-credentials-verification-policy.md` |
 | Content-projection MD/MDX blocks (records:v1 + ds-astro embed set) | — | Core | Phase 1 implemented, selected, and downstream-proven; `ds-astro` render pressure received from `vault-seed`, package plan next | consumer-pulled | `packages/content-projection`, `docs/superpowers/specs/2026-07-02-content-projection-md-mdx-design.md`, `docs/superpowers/plans/2026-07-03-ds-astro-mdx-render-adapter.md` |
 | v0.1.0 publish decision: daily-driver parity rows vs documented human override | — | Operator | Blocked on operator decision | — | `docs/v0.1.0-release-gate.md`, `docs/DAILY_DRIVER_PARITY.md` |
+| Operate a workspace's declared command over the mesh (white-label operation catalog, not a remote shell) | — | Core | Local half shipped (`refarm workspace run <ws> <cmd>` + `commands` allowlist, argv-normalized); remote HTTP-over-tailnet exposure gated on operator security sign-off; reach = Refarm mesh, NOT sshd | — | `packages/config` (`bfd3cc92`), `apps/refarm/src/commands/workspace.ts` (`3e7368f7`), `packages/login-flow`, `docs/CONVERGENCE-LANE.md`, `docs/REFARM_WORK_FOCUS.md` (Remote-workspace-control track) |
+| Declared connections — shared, host-owned interactive sessions | — | Core | Engine shipped and whole-branch-reviewed (host-internal, probe-based readiness proven end to end; 71 connection tests, `host_effects` 236 → 307); WIT surface + operator CLI pending | — | `packages/tractor/src/host/host_effects_bridge/connection_*.rs`, `docs/superpowers/specs/2026-07-28-declared-connections-shared-sessions-design.md` |
+| Connection operator surface: `refarm connection status` + a `doctor` finding | — | Core | Shipped (TypeScript-only, no plugin/WASM/host registry needed — probe asks the system directly): catalog reader, live per-connection `up`/`down`/`unknown` status with binary resolution, and a `doctor` warning naming a connection with an unresolvable binary or a catalog issue; 58 tests. WIT surface + `connection:use` permission, the claims/since-when half of D12, and D13's attention handshake remain operator-gated | — | `apps/refarm/src/commands/connection-catalog.ts`, `apps/refarm/src/commands/connection.ts`, `apps/refarm/src/commands/connection-doctor.ts`, `docs/CONVERGENCE-LANE.md` |
 
 ---
 
@@ -455,7 +510,7 @@ _Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcemen
 | Silo storage surface free of the identity closure | ADR-076 | 2026-07-03 | Accepted after source verification: dynamic key-manager import, heartwood as `optionalDependencies`, 0600/0700 hardening, closure test |
 | Agent-commons environment ceilings | ADR-078 | 2026-07-03 | Accepted with phased implementation: cgroup boundary + contract test shipped; watchdog-first per the 2026-07-02 revision |
 | Plugin dispatch model | ADR-084 | 2026-07-05 | Accepted after adversarial source recon: async-default (the agent's proven model) + sync-negotiated by a metadata capability flag (never a free choice); "both, let them choose" refuted as fragmenting |
-| Device auth gate + browser/WS credential channel | ADR-093 | 2026-07-25 | CLI/HTTP gate shipped (opt-in bearer, sha256 policy, `refarm auth enroll`); hub HTTP via stored token bootstrapped by one-time `?token=`, `/sync` WS via `Sec-WebSocket-Protocol` subprotocol (browser can't set `Authorization`) — fresh-pass implementation |
+| Device auth gate + browser/WS credential channel | ADR-093 | 2026-07-25 | PARTIAL. Shipped: the CLI/HTTP half — opt-in bearer gate on the Rust sidecar, sha256 policy file, `refarm auth enroll`, hub HTTP via a stored token bootstrapped by a one-time `?token=`. Shipped 2026-07-29: the `/sync` WS credential handshake over `Sec-WebSocket-Protocol` — `daemon::WsServer` gates the upgrade itself (`accept_hdr_async`, opt-in via the SAME `REFARM_AUTH_POLICY`, fail-closed on an unreadable policy), `packages/sync-loro/src/browser-sync-client.ts` can offer a token, and `surfaces.daemon-ws` now enforces `device-token` like `sidecar-http` (previously it could only ever declare `loopback`). NOT implemented: the browser hub's OWN token bootstrap/persistence wiring (`apps/me` reading `?token=`, `localStorage`, attaching the credential to its sync socket) — the server- and client-library-side gates exist; the hub itself does not use them yet. Earlier wording here read "fresh-pass implementation" over the whole row, recording unpaid debt as paid. Amended 2026-07-30: the DECLARATION is the opt-in, not the env — `surfaces.<name>` with `"gate": "device-token"` derives the policy path `<refarm-dir>/auth-policy.json` (the file `refarm auth enroll` already writes), `REFARM_AUTH_POLICY` demoted to an override, and a declared-but-unenrolled gate binds DENY-ALL instead of refusing the bind |
 
 ---
 

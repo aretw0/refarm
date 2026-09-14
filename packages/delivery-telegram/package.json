@@ -1,0 +1,33 @@
+{
+	"name": "@refarm.dev/delivery-telegram",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Telegram delivery adapter — announces refarm's questions and carries a decision back through an inline keyboard",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist",
+		"test:unit": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/delivery-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
+}

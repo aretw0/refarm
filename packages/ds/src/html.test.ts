@@ -32,6 +32,12 @@ describe("ds html helpers", () => {
 		expect(html).toContain("<div>r</div>");
 	});
 
+	it("cardHtml carries escaped host binding attributes", () => {
+		const html = cardHtml({ title: "Run", rows: [], attrs: { "data-run": 'a"b' } });
+
+		expect(html).toContain('data-run="a&quot;b"');
+	});
+
 	it("buttonHtml emits ds-btn + variant + escaped attrs", () => {
 		const html = buttonHtml({
 			label: "Save",

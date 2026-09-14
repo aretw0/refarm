@@ -58,7 +58,8 @@ export const agentFinishLaneCatalog = [
 		id: "before-push",
 		recommendedKey: "beforePush",
 		command: agentFinishCommand(["--lane", "before-push", "--run", "--json"]),
-		description: "Run final branch-local validation before pushing.",
+		description:
+			"Validate the branch range, then the repo-wide contracts a push makes public.",
 		useWhen: "Before pushing a branch with an upstream configured.",
 		validationScope: "branchRange",
 	},

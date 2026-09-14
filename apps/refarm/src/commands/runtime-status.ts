@@ -2,6 +2,8 @@ import { type RuntimeSidecarProbeSummary, type RuntimeStatusSummary } from "@ref
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 
+import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -13,6 +15,7 @@ import {
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import { resolveRuntimeLaunchCommand, type RuntimeLaunchCommand } from "./runtime-launcher.js";
+import { runtimeNodeArgs } from "./runtime-node-args.js";
 import type { RuntimeReadinessProbe } from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -34,7 +37,9 @@ import type { RuntimeCommandDeps } from "./runtime.js";
  * so no runtime cycle).
  */
 
-export type RuntimeStatusPayload = RuntimeStatusSummary;
+export type RuntimeStatusPayload = RuntimeStatusSummary & {
+	context: NodeContextMetadata;
+};
 
 const START_LOG_TAIL_LINES = 40;
 
@@ -102,8 +107,9 @@ export async function runtimeStatusPayload(
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
 			...(sidecarProbe ? { sidecarProbe } : {}),
+			context: resolveNodeContextMetadata(process.env),
 			ready,
-			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine).display,
+			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine, runtimeNodeArgs(resolveRefarmHome())).display,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -115,6 +121,7 @@ export async function runtimeStatusPayload(
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
 			...(sidecarProbe ? { sidecarProbe } : {}),
+			context: resolveNodeContextMetadata(process.env),
 			ready,
 			issue: message,
 		};
@@ -151,7 +158,7 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
 		operation,
 		...payload,
 		...(extra ?? {}),
-		ok: runtimePayloadOk(payload),
+		ok: runtimeOperationOk(payload, operation, extra),
 		nextAction: nextActions[0] ?? null,
 		nextActions,
 		nextCommand: nextCommands[0] ?? null,
@@ -159,7 +166,44 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
 	} as RuntimeJsonPayload<TExtra>;
 }
 
-function runtimePayloadOk(payload: RuntimeStatusPayload): boolean {
+/**
+ * `ok` answers "did the command do its job", which is a DIFFERENT question per operation.
+ *
+ * `status` is a report. Producing it is the job, and it always succeeds — a runtime that is
+ * not running is precisely what the operator asked about, and it is already carried by
+ * `ready: false` (plus `activeEngine` and `issue`). Reporting that faithfully with
+ * `ok: false` and a non-zero exit would kill any `set -e` script merely for ASKING how
+ * things are; `git status` on a dirty tree exits 0 for exactly this reason.
+ *
+ * `start` / `ensure` / `restart` are acts. Their job is a runtime that ends up ready, so
+ * `runtimeIsHealthy` IS the verdict on whether they did it — unchanged.
+ *
+ * See `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+ */
+function runtimeOperationOk<TExtra extends object = object>(
+	payload: RuntimeStatusPayload,
+	operation: RuntimeJsonPayload["operation"],
+	extra?: TExtra,
+): boolean {
+	if (operation === "status") return true;
+	// ISS-084. THE ACT WAS PERFORMED AND ITS RESULT WAS NOT OBSERVED — three states, and the middle
+	// one used to be reported as failure. `refarm runtime restart --json` returned
+	// `{"ok": false, "error": null, "message": null}` after a restart that SUCCEEDED, because `ok`
+	// was computed from `payload`: the status snapshot taken while the runtime was stopped, one step
+	// before it was started again. Without `--wait` the command never looked afterwards, so it had
+	// no verdict to give — and an `ok: false` carrying a null error is unactionable besides.
+	//
+	// When the caller waited, `ready` is the real answer and still decides. When it did not, the
+	// honest verdict is on what the command DID: it started the runtime, which is what was asked.
+	// The payload's staleness must not masquerade as an observation.
+	const started = (extra as { started?: unknown } | undefined)?.started === true;
+	if (started && payload.ready === undefined) return true;
+	return runtimeIsHealthy(payload);
+}
+
+/** Is the runtime itself usable? The SUBJECT's state — never confuse it with `ok`, which is
+ *  about the command. Exported because the base surface asks this question directly. */
+export function runtimeIsHealthy(payload: RuntimeStatusPayload): boolean {
 	return payload.activeEngine !== "unknown" && !payload.issue && payload.ready !== false;
 }
 
@@ -272,6 +316,18 @@ export function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	if (payload.sidecarUrl) {
 		console.log(`  sidecar:    ${payload.sidecarUrl}`);
 	}
+	console.log(`  context:    ${payload.context.mode}`);
+	console.log(
+		`  binding:    ${payload.context.binding.kind} (${payload.context.binding.origin})`,
+	);
+	console.log(`  state:      ${payload.context.state.policy}`);
+	console.log(`  creds:      ${payload.context.credentials.policy}`);
+	console.log(`  runtime:    ${payload.context.runtime.policy}`);
+	console.log(`  home:       ${payload.context.sovereignHome}`);
+	console.log(`  store:      ${payload.context.credentialStoreHome}`);
+	if (!payload.context.homesAligned) {
+		console.log(chalk.yellow("  warning:    REFARM_HOME and SILO_HOME resolve to different homes"));
+	}
 	console.log(`  reason:     ${payload.reason}`);
 	if (payload.startCommand) {
 		console.log(`  start:      ${payload.startCommand}`);
@@ -297,6 +353,6 @@ export async function resolveRuntimeStartCommand(deps: RuntimeCommandDeps): Prom
 	}
 	return {
 		payload,
-		command: resolveRuntimeLaunchCommand(repoRoot, payload.activeEngine),
+		command: resolveRuntimeLaunchCommand(repoRoot, payload.activeEngine, runtimeNodeArgs(resolveRefarmHome())),
 	};
 }

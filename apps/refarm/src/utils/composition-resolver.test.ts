@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { declaredBase } from "@refarm.dev/config";
+
 import { resolveComposition, userScopeConfigPath } from "./composition-resolver.js";
 
 /** Write a `config.json` under `<base>/.refarm/config.json`. */
@@ -101,5 +103,56 @@ describe("co-habitation guarantee", () => {
 		expect(userScopeConfigPath("/custom/home")).toBe(
 			join("/custom/home", ".refarm", "config.json"),
 		);
+	});
+});
+
+describe("ISS-102 — the user tier follows the DECLARED base, and both sides agree", () => {
+	/**
+	 * The co-habitation guarantee: `config.ts` writes scalars and this module reads `plugins[]`,
+	 * and they must be THE SAME FILE at every tier. Both used to anchor on `os.homedir()`, which
+	 * kept them consistent and kept them wrong — under a declared home (a sandbox node, a second
+	 * device) both answered the operator's OS home rather than the base the node declared.
+	 *
+	 * ISS-102 insisted they move in one change with a test pinning them to the same path, because
+	 * moving one alone splits a file the composition layer depends on being single. This is that
+	 * test.
+	 */
+	// THE SEAM ITSELF, not a re-derivation of it. `userScopeConfigPath` is what this module
+	// exposes precisely so a test can assert it equals `config.ts`'s `configPath({local:false})`.
+	// Rebuilding the path here would test my arithmetic instead of their agreement.
+	const userTierPathFor = (env: NodeJS.ProcessEnv) => userScopeConfigPath(declaredBase(env));
+	/** `config.ts`'s own rule, quoted: `path.join(deps.home(), ".refarm", "config.json")`. */
+	const configTsWouldWrite = (env: NodeJS.ProcessEnv) =>
+		join(declaredBase(env), ".refarm", "config.json");
+
+	it("lands on the declared base, not the OS home, under REFARM_HOME", () => {
+		const env = { HOME: "/home/op", REFARM_HOME: "/tmp/sandbox-node/.refarm" };
+		expect(declaredBase(env)).toBe("/tmp/sandbox-node");
+		expect(userTierPathFor(env)).toBe("/tmp/sandbox-node/.refarm/config.json");
+	});
+
+	it("SOVEREIGN_BASE wins, because it names the base directly", () => {
+		const env = { HOME: "/home/op", REFARM_HOME: "/tmp/x/.refarm", SOVEREIGN_BASE: "/srv/node-a" };
+		expect(userTierPathFor(env)).toBe("/srv/node-a/.refarm/config.json");
+	});
+
+	it("is byte-for-byte what it was when nothing is declared", () => {
+		// The ordinary case must not move: `declaredBase` falls through to HOME, which is what
+		// `os.homedir()` answered before. A change that altered this would have been a migration
+		// wearing a bug-fix's clothes.
+		expect(userTierPathFor({ HOME: "/home/op" })).toBe("/home/op/.refarm/config.json");
+	});
+
+	it("THE GUARANTEE: this resolver's user tier IS the file config.ts writes", () => {
+		// Asserted rather than described. Under a declared home the two used to agree on the wrong
+		// file; they must now agree on the right one, which is a stronger claim than either moving
+		// alone could make.
+		for (const env of [
+			{ HOME: "/home/op" },
+			{ HOME: "/home/op", REFARM_HOME: "/tmp/sandbox-node/.refarm" },
+			{ HOME: "/home/op", SOVEREIGN_BASE: "/srv/node-a" },
+		]) {
+			expect(userTierPathFor(env)).toBe(configTsWouldWrite(env));
+		}
 	});
 });

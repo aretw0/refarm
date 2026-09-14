@@ -20,6 +20,11 @@
 //!   MODEL_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
 //!   MODEL_FALLBACK_MODEL_ID=<model-id>       (optional model override for MODEL_FALLBACK_PROVIDER)
 //!   MODEL_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. MODEL_BUDGET_ANTHROPIC_USD=5.0)
+//!   MODEL_RUN_MAX_TOKENS=<u32>               (cumulative token ceiling across every turn of this run; set by
+//!                                             handle_prompt from Task 5's resolved per-effort budget — absent
+//!                                             unless the dispatch declared one)
+//!   MODEL_RUN_MAX_USD=<f64>                  (cumulative estimated-USD ceiling across every turn of this run,
+//!                                             same source as MODEL_RUN_MAX_TOKENS; inert outside `api` pricing mode)
 //!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
 //!   MODEL_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
@@ -34,6 +39,7 @@
 //!     → guard: MODEL_MAX_CONTEXT_TOKENS
 //!     → guard: MODEL_BUDGET_<PROVIDER>_USD (reads UsageRecord CRDT nodes)
 //!     → provider::complete()  — dispatches to Anthropic or OpenAI-compat wire format
+//!     → guard: MODEL_RUN_MAX_TOKENS / MODEL_RUN_MAX_USD (cumulative across every turn of this run)
 //!     → on error/budget block: retry via MODEL_FALLBACK_PROVIDER
 //!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
@@ -75,6 +81,8 @@ mod utils;
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
 #[allow(unused_imports)]
 pub(crate) use runtime::react;
+#[allow(unused_imports)]
+pub(crate) use runtime::{cumulative_limit_error, spend_limit_error, RunTotals};
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
     append_to_session, budget_exceeded_for_provider, get_or_create_session, query_history,
@@ -83,8 +91,8 @@ pub(crate) use session::{
 #[allow(unused_imports)]
 pub(crate) use session::{
     compact_history, compact_history_detailed, history_from_nodes, history_from_tree,
-    provider_name_from_env, session_entry_node, session_node, session_participant_from_agent_id,
-    sum_provider_spend_usd,
+    provider_name_from_env, resolved_provider_name, session_entry_node, session_node,
+    session_participant_from_agent_id, sum_provider_spend_usd,
 };
 #[allow(unused_imports)]
 pub(crate) use structured_io::{
@@ -93,7 +101,13 @@ pub(crate) use structured_io::{
 #[allow(unused_imports)]
 pub(crate) use utils::{
     estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, mint_urn, now_ns,
-    pricing_mode_for_provider,
+    price_is_known, pricing_mode_for_provider, rate_for_model, RateLookup, RATE_TABLE_VERSION,
+};
+
+#[cfg(test)]
+pub(crate) use utils::{
+    injected_rate_catalog, parse_rate_catalog, rate_for_model_in, rate_from_builtin_table,
+    rate_from_catalog, CatalogEntry, CatalogLookup,
 };
 
 #[cfg(test)]
@@ -221,6 +235,12 @@ struct RespondPayload {
     /// ADR-012 routing profile (cheap|balanced|reliable). When set (and no explicit
     /// provider/model pin), the guest resolves the route by profile.
     profile: Option<String>,
+    /// Which workspace this run belongs to, and how that was arrived at. Declared by the
+    /// caller, never derived here: the guest has no directory of its own worth consulting,
+    /// and a workspace guessed inside the WASM would be exactly the ambient read the
+    /// 2026-08-03 field failure was about.
+    workspace_id: Option<String>,
+    workspace_source: Option<String>,
 }
 
 /// RAII guard: sets an env var for the duration of a call, restores on drop.
@@ -302,6 +322,16 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string());
+    let workspace_id = parsed
+        .get("workspace_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let workspace_source = parsed
+        .get("workspace_source")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
     Ok(RespondPayload {
         prompt,
         system,
@@ -310,6 +340,8 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         provider,
         model,
         profile,
+        workspace_id,
+        workspace_source,
     })
 }
 
@@ -352,6 +384,9 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     // which reads MODEL_PROFILE) honors it. An explicit provider/model pin below still
     // wins; the guard restores any daemon-global MODEL_PROFILE after the turn.
     let _profile = EnvGuard::maybe_set("MODEL_PROFILE", req.profile.as_deref());
+    let _workspace = EnvGuard::maybe_set("MODEL_WORKSPACE_ID", req.workspace_id.as_deref());
+    let _workspace_source =
+        EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", req.workspace_source.as_deref());
 
     let outcome = runtime::execute_prompt_with_route(
         &req.prompt,
@@ -368,7 +403,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         &outcome.model,
         outcome.tokens_in,
         outcome.tokens_out,
-        outcome.tokens_cached,
+        outcome.cache_read_tokens,
+        outcome.cache_creation_tokens,
     );
     Ok(build_respond_json(
         outcome.content,
@@ -390,20 +426,30 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let _system = EnvGuard::maybe_set("MODEL_SYSTEM", req.system.as_deref());
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
+    let _workspace = EnvGuard::maybe_set("MODEL_WORKSPACE_ID", req.workspace_id.as_deref());
+    let _workspace_source =
+        EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", req.workspace_source.as_deref());
 
     let (
         content,
         _tool_calls,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         model,
         usage_raw,
     ) = runtime::react_with_prompt_ref(&req.prompt, None);
     let provider = provider_name_from_env().to_string();
-    let estimated_usd =
-        estimate_billable_usd(&provider, &model, tokens_in, tokens_out, tokens_cached);
+    let estimated_usd = estimate_billable_usd(
+        &provider,
+        &model,
+        tokens_in,
+        tokens_out,
+        cache_read_tokens,
+        cache_creation_tokens,
+    );
     Ok(build_respond_json(
         content,
         model,

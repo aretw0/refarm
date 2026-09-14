@@ -1,6 +1,9 @@
+/// (content, tool_calls, tokens_in, tokens_out, cache_read_tokens,
+///  cache_creation_tokens, tokens_reasoning, model_id, usage_raw)
 pub(crate) type ReactResult = (
     String,
     serde_json::Value,
+    u32,
     u32,
     u32,
     u32,
@@ -17,6 +20,7 @@ pub(crate) fn blocked_result(message: String) -> ReactResult {
         0,
         0,
         0,
+        0,
         "blocked".to_owned(),
         "{}".to_owned(),
     )
@@ -26,6 +30,7 @@ pub(crate) fn error_result(message: String, model: String) -> ReactResult {
     (
         message,
         serde_json::json!([]),
+        0,
         0,
         0,
         0,
@@ -45,7 +50,8 @@ pub(crate) fn completion_result(
         r.tool_calls,
         r.tokens_in,
         r.tokens_out,
-        r.tokens_cached,
+        r.cache_read_tokens,
+        r.cache_creation_tokens,
         r.tokens_reasoning,
         model,
         r.usage_raw,

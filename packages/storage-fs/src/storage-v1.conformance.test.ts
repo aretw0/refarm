@@ -62,6 +62,13 @@ describe("@refarm.dev/storage-fs storage:v1 conformance", () => {
 				updatedAt: "2026-07-01T00:00:00.000Z",
 			},
 			{
+				id: "future",
+				type: "config-override",
+				payload: "{}",
+				createdAt: "2026-08-01T00:00:00.000Z",
+				updatedAt: "2026-08-01T00:00:00.000Z",
+			},
+			{
 				id: "other",
 				type: "scheduler-entry",
 				payload: "{}",
@@ -71,12 +78,18 @@ describe("@refarm.dev/storage-fs storage:v1 conformance", () => {
 		]);
 
 		const overrides = await provider.query({ type: "config-override" });
-		expect(overrides.map((r) => r.id)).toEqual(["old", "new"]);
+		expect(overrides.map((r) => r.id)).toEqual(["old", "new", "future"]);
 
 		const recent = await provider.query({
 			type: "config-override",
 			createdAfter: "2026-06-01T00:00:00.000Z",
 		});
-		expect(recent.map((r) => r.id)).toEqual(["new"]);
+		expect(recent.map((r) => r.id)).toEqual(["new", "future"]);
+
+		const before = await provider.query({
+			type: "config-override",
+			createdBefore: "2026-07-15T00:00:00.000Z",
+		});
+		expect(before.map((r) => r.id)).toEqual(["old", "new"]);
 	});
 });

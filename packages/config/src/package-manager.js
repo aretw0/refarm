@@ -57,6 +57,7 @@ function detectPackageManagerFromLockfile(dir) {
 	return null;
 }
 
+// os-resolution: project — which package manager the PROJECT at this path declares, read from its lockfile and package.json
 export function detectPackageManager({ cwd = process.cwd(), env = process.env } = {}) {
 	const override = parsePackageManager(env[PACKAGE_MANAGER_OVERRIDE_ENV_VAR]);
 	if (override) return override;
@@ -186,6 +187,7 @@ function formatNpmArgsDisplay(args) {
 	return args.length > 0 ? ` -- ${formatDisplayArgs(args)}` : "";
 }
 
+// os-resolution: project — the project whose package manager decides how to phrase a script run
 export function packageScriptCommand(script, { cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 	const command = `${packageManager} run ${script}`;
@@ -196,6 +198,7 @@ export function packageScriptCommand(script, { cwd = process.cwd(), env = proces
 	};
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageInstallCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 	const command = `${packageManager} install`;
@@ -206,6 +209,7 @@ export function packageInstallCommand({ cwd = process.cwd(), env = process.env }
 	};
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -253,6 +257,7 @@ export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process
 
 export function packageAddDevCommand(
 	dependencyName,
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	{ cwd = process.cwd(), env = process.env } = {},
 ) {
 	const packageManager = detectPackageManager({ cwd, env });
@@ -304,6 +309,7 @@ export function packageAddDevCommand(
 }
 
 export function packageAuditCommand({
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	cwd = process.cwd(),
 	env = process.env,
 	auditLevel = null,
@@ -343,6 +349,7 @@ export function packageAuditCommand({
 	}
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -401,6 +408,7 @@ export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env
 	}
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -435,6 +443,7 @@ export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process
 }
 
 export function packageWorkspacePublishDryRunCommand({
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	cwd = process.cwd(),
 	env = process.env,
 } = {}) {
@@ -498,9 +507,49 @@ export function packageWorkspacePublishDryRunCommand({
 	}
 }
 
+/**
+ * Assemble a self-contained production tree of one workspace package into `directory`.
+ *
+ * Only pnpm can do this. `pnpm deploy` resolves the workspace's transitive closure and writes a
+ * tree that runs with no workspace around it — which is what installing a node from a checkout
+ * requires. npm, yarn and bun have no equivalent, and the nearest-looking commands assemble a
+ * DIFFERENT tree, so this refuses rather than silently producing the wrong one.
+ *
+ * IT LEAVES THE SOURCE CHECKOUT STALE, and every caller has to deal with that. `--legacy` runs its
+ * own `pnpm install --production` and the workspace's recorded dependency status does not survive
+ * it: afterwards EVERY `pnpm run` and `pnpm exec` in that checkout aborts with
+ * `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` — the repo's own build and quality lanes included.
+ * Measured on 2026-08-19: `pnpm exec` fine, deploy, `pnpm exec` aborts; `pnpm install` (~2s,
+ * "Already up to date") puts it back. Follow this with {@link packageInstallCommand} in the same
+ * checkout. `--legacy` is not optional here — without it pnpm refuses unless the whole workspace
+ * sets `inject-workspace-packages=true`.
+ */
+export function packageWorkspaceDeployCommand(
+	packageName,
+	directory,
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
+	{ cwd = process.cwd(), env = process.env } = {},
+) {
+	const packageManager = detectPackageManager({ cwd, env });
+	if (packageManager !== "pnpm") {
+		throw new Error(
+			`${packageManager} has no deploy-to-directory operation; assembling a self-contained tree needs pnpm.`,
+		);
+	}
+	const args = ["--filter", packageName, "deploy", "--prod", "--legacy", directory];
+	const pnpm = packageManagerSpawnCommand(packageManager, args);
+	return {
+		packageManager,
+		command: pnpm.command,
+		args: pnpm.args,
+		display: `pnpm ${formatDisplayArgs(args)}`,
+	};
+}
+
 export function packageBinaryCommand(
 	binary,
 	args = [],
+	// os-resolution: project — the project whose package manager knows how to invoke a local binary
 	{ cwd = process.cwd(), env = process.env } = {},
 ) {
 	const packageManager = detectPackageManager({ cwd, env });

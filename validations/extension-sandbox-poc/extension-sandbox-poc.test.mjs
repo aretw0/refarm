@@ -284,7 +284,7 @@ describe("extension sandbox poc", () => {
 	it("publishes a task artifact manifest for downstream consumers", () => {
 		const manifest = readFixture("task-artifacts.json");
 
-		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
+		assert.equal(manifest.schema, "sovereign.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-extension-sandbox-poc");
 		assert.equal(manifest.effortId, "effort-extension-sandbox-poc-001");
 		assert.deepEqual(

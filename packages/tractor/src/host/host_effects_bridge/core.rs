@@ -259,6 +259,18 @@ pub(crate) async fn spawn_process(
         cmd.current_dir(dir);
     }
 
+    // P10 — the operator-declared spawn environment (`.refarm/config.json`'s
+    // `spawnEnv`): composed ONLY from the declaration resolved once at host boot
+    // (never the daemon's own ambient env — see `HostEffectPolicy::spawn_env` /
+    // `SpawnEnvDecl::injected_vars`), applied AFTER the plugin's own env above.
+    // That ordering is defense in depth, not the real guarantee: `enforce_spawn_env`
+    // already rejected a plugin-supplied PATH/HOME before this function was ever
+    // reached, so these keys can only originate here. The plugin never had a say;
+    // only the operator does.
+    for (key, value) in policy.spawn_env()?.injected_vars() {
+        cmd.env(key, value);
+    }
+
     let mut child = cmd.spawn().map_err(|e| format!("spawn({binary}): {e}"))?;
 
     if let Some(stdin_bytes) = stdin {

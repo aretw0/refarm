@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { spawnSync as defaultSpawnSync } from "node:child_process";
+import { explainToolRequirement, parseToolVersion, toolRequirementState } from "../tool-requirements.js";
 
 const DEFAULT_COMMAND_ARGS = ["--version"];
 const DEFAULT_DEVCONTAINER_MOUNT_CHECK = {
@@ -110,6 +111,9 @@ export class ToolchainAuditor {
 			command: [command, ...args].join(" "),
 			stdout: result.stdout,
 			stderr: result.stderr || result.stdout,
+			minVersion: check.minVersion,
+			why: check.why,
+			tool: command,
 		});
 	}
 
@@ -188,14 +192,33 @@ async function pathExists(filePath, mode = constants.F_OK) {
 	}
 }
 
-function commandCheckResult({ id, label, ok, required, command, stdout = "", stderr = "" }) {
+/**
+ * A command check's verdict, including whether a DECLARED minimum version was actually met.
+ *
+ * Presence used to be the whole answer here, and presence is the answer that misses the case this
+ * was extended for: a tool installed years ago still exits 0 for `--version`. The four states come
+ * from `tool-requirements.js` so that every surface asking "is this tool good enough?" reads one
+ * decision — a second copy of this comparison is a second place to get the ordering wrong.
+ */
+function commandCheckResult({ id, label, ok, required, command, stdout = "", stderr = "", minVersion, why, tool }) {
+	const banner = stdout.trim().slice(0, 80);
+	const state = toolRequirementState({ present: ok, versionText: ok ? banner : undefined, minVersion });
+	const measured = ok ? parseToolVersion(banner) : undefined;
 	return {
 		id,
 		label,
-		ok,
+		// `outdated` and `cannot-say` both fail: a declared floor that was not met, and a declared
+		// floor that nothing verified, are each worse than an honest absence — they look satisfied.
+		ok: state === "ok",
 		required,
 		command,
-		version: ok ? stdout.trim().slice(0, 80) : undefined,
+		version: ok ? banner : undefined,
+		state,
+		minVersion,
+		measuredVersion: measured,
+		// The BINARY, not the command line: "`gh` measured 2.4.0" is what an operator repairs;
+		// "`gh --version` measured 2.4.0" reads as though the flag were the thing at fault.
+		detail: explainToolRequirement({ command: tool ?? command, minVersion, why }, state, measured) ?? undefined,
 		stderr: ok ? undefined : stderr.trim().slice(0, 240),
 	};
 }

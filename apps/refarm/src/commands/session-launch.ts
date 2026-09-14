@@ -16,6 +16,7 @@ import {
 	type AutostartActivityReporter,
 	type AutostartVocabulary,
 } from "@refarm.dev/runtime-operator";
+import { resolveSiloHome } from "@refarm.dev/silo";
 import chalk from "chalk";
 import fs from "node:fs";
 import path from "node:path";
@@ -36,8 +37,18 @@ import {
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
 import { resolveSovereignConfig } from "../utils/sovereign-config.js";
+import {
+	MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
+	MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
+	MODEL_CREDENTIALS_MISSING_MESSAGE,
+	MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
+	MODEL_CREDENTIALS_SETUP_COMMAND,
+	missingModelCredentialDeferredLines,
+} from "./model-credential-guidance.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
+import { runtimeNodeArgs } from "./runtime-node-args.js";
+import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeReady,
 	waitForRuntimeOutcome,
@@ -76,7 +87,9 @@ export interface LaunchRuntimeSelection {
 
 export interface LaunchDeps {
 	operator: OperatorChannel;
-	spawnRuntime?(repoRoot: string): void;
+	/** May be async: an app that must assemble the node's environment before spawning has to
+	 *  await it, and a runtime started without it comes up ready and refuses every dispatch. */
+	spawnRuntime?(repoRoot: string): void | Promise<void>;
 	probeRuntimeUntilReady?(): Promise<boolean>;
 	/** Honest wait: returns why the wait ended so a slow boot isn't reported as failure. */
 	probeRuntimeUntilOutcome?(): Promise<RuntimeWaitOutcome>;
@@ -119,8 +132,19 @@ export async function checkSessionReadiness(): Promise<SessionReadiness> {
 }
 
 // Exported for tests — returns dirs to search for .refarm config, home first.
+//
+// Silo's home is included because that is where `refarm sow` actually stores an
+// OAuth model credential (`identity.json` under `SILO_HOME || REFARM_HOME ||
+// ~/.silo`). Without it, a machine with REFARM_HOME unset puts the store in
+// ~/.silo where this search never looked, so `model current` reported
+// `silo-oauth` while `ask` refused with "no usable credentials" — and re-running
+// `sow` could not help, because `sow` writes exactly where the gate was not
+// looking. When the two homes resolve to the same directory the Set dedupes,
+// which is why the defect was invisible on any setup that exports REFARM_HOME.
 export function refarmSearchDirs(): string[] {
-	return Array.from(new Set([resolveRefarmHome(), path.join(process.cwd(), ".refarm")]));
+	return Array.from(
+		new Set([resolveRefarmHome(), resolveSiloHome(), path.join(process.cwd(), ".refarm")]),
+	);
 }
 
 /**
@@ -168,6 +192,43 @@ function* collectProviderEvidence(): Generator<ProviderEvidence> {
 		yield envFileEvidence(path.join(base, ".env"));
 		yield identityEvidence(path.join(base, "identity.json"));
 		yield configEvidence(path.join(base, "config.json"));
+		yield catalogEvidence(path.join(base, "model-accounts.json"));
+	}
+}
+
+/**
+ * A HEALTHY ACCOUNT IN THE CATALOG IS A USABLE CREDENTIAL, and this gate did not know it.
+ *
+ * Measured on the operator's node 2026-08-17, right after `refarm sow` succeeded: three healthy
+ * accounts, `refarm credential list` naming all three, and every dispatch refused with "No usable
+ * model credentials configured."
+ *
+ * `sow` writes the secret into Silo's `model` namespace and RETIRES the flat entry — that is what
+ * the namespaced store is for. Every source above reads the flat shape, so a provider still
+ * declared in `identity.json` resolved to `declared-missing` against an emptied map. The more
+ * completely a node migrated, the more certain this gate became that it had nothing (ISS-138).
+ *
+ * ONLY `healthy` COUNTS. An `incomplete` descriptor is a login that happened and a secret that did
+ * not survive; treating it as evidence would turn a fail-closed gate into one that passes on
+ * intent. The descriptor carries no secret material, so this stays a plain synchronous read.
+ */
+function catalogEvidence(filePath: string): ProviderEvidence {
+	if (!fs.existsSync(filePath)) return "none";
+	try {
+		const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+		if (!Array.isArray(parsed)) return "none";
+		const usable = parsed.some(
+			(entry) =>
+				typeof entry === "object" &&
+				entry !== null &&
+				(entry as { health?: unknown }).health === "healthy",
+		);
+		// "none", never "declared-missing", when the catalog holds nothing usable: a catalog is not
+		// a declaration of intent, so an empty one has chosen nothing and must not veto another
+		// source that has a working credential.
+		return usable ? "usable" : "none";
+	} catch {
+		return "none";
 	}
 }
 
@@ -289,7 +350,19 @@ function tractorBuildCommand(repoRoot: string): string {
 export function resolveLaunchRuntime(
 	repoRoot: string,
 	configuredEngine: TractorEngineMode = readTractorEngineMode(),
+	/**
+	 * How to find the runtime binary. Injected so a test pins both answers, and so the two places
+	 * this node can hold one are asked in the same order the LAUNCHER asks them.
+	 *
+	 * MEASURED 2026-08-19 with the CLI installed rather than run from the working tree: this
+	 * looked only at a REPO path, so a node whose config said `rust`, whose runtime was RUNNING,
+	 * and whose binary sat on PATH reported `activeEngine: "unknown"` and refused to start one. A
+	 * selection that disagrees with the launcher below it is a node that cannot restart itself.
+	 */
+	io: { existsSync?: (target: string) => boolean; onPath?: () => string | null } = {},
 ): LaunchRuntimeSelection {
+	const exists = io.existsSync ?? fs.existsSync;
+	const onPath = io.onPath ?? (() => tractorOnPath());
 	if (configuredEngine === "ts") {
 		return {
 			configuredEngine,
@@ -298,9 +371,9 @@ export function resolveLaunchRuntime(
 		};
 	}
 	if (configuredEngine === "rust") {
-		if (!fs.existsSync(tractorBinaryPath(repoRoot))) {
+		if (!exists(tractorBinaryPath(repoRoot)) && !onPath()) {
 			throw new Error(
-				`tractor.engine=rust but the Rust tractor binary is not built at ${tractorBinaryPath(repoRoot)}. Build it with: ${tractorBuildCommand(repoRoot)}`,
+				`tractor.engine=rust but no Rust tractor binary was found — not at ${tractorBinaryPath(repoRoot)}, and not on PATH. Build it with: ${tractorBuildCommand(repoRoot)}, or install it where this node can reach it.`,
 			);
 		}
 		return {
@@ -309,7 +382,7 @@ export function resolveLaunchRuntime(
 			reason: "configured-rust",
 		};
 	}
-	if (fs.existsSync(tractorBinaryPath(repoRoot))) {
+	if (exists(tractorBinaryPath(repoRoot)) || onPath()) {
 		return {
 			configuredEngine,
 			activeEngine: "rust",
@@ -330,17 +403,35 @@ export function findRepoRoot(): string {
 	return path.resolve(path.dirname(__filename), "../../../../");
 }
 
-export function defaultLaunchDeps(): LaunchDeps {
+/**
+ * The seams `defaultLaunchDeps` opens for tests. Injected the same way `runtime.ts` already
+ * injects `deps.startRuntime` — a module mock would be a second way to do one thing.
+ */
+export interface DefaultLaunchDepsOverrides {
+	readonly startRuntime?: typeof startRuntimeProcess;
+	readonly runtimeNodeEnv?: typeof runtimeNodeEnv;
+}
+
+export function defaultLaunchDeps(overrides: DefaultLaunchDepsOverrides = {}): LaunchDeps {
 	const deps: LaunchDeps = {
 		// autostartMode is intentionally left unset — autoStartRuntime resolves it
 		// node-aware at its async decision point (defaultLaunchDeps stays sync, so
 		// its callers ask.ts/chat.ts/session.ts do not need to await it).
 		operator: createStdioOperatorChannel(),
 
-		spawnRuntime(repoRoot) {
+		async spawnRuntime(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
-			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
-			startRuntimeProcess(command);
+			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine, runtimeNodeArgs(resolveRefarmHome()));
+			// THE ENVIRONMENT, not only the arguments. MEASURED 2026-08-19 and recorded in
+			// runtime-node-env.ts: a runtime started from the arguments alone comes up healthy,
+			// with the right plugins and the right sovereign directory, and refuses every dispatch
+			// — worse than one that fails to start, because `status` says ready. The three
+			// deliberate paths in runtime.ts have always passed it; this one, which fires WITHOUT
+			// the operator asking, did not (ISS-177).
+			(overrides.startRuntime ?? startRuntimeProcess)(
+				command,
+				await (overrides.runtimeNodeEnv ?? runtimeNodeEnv)(),
+			);
 		},
 		resolveRuntime: resolveLaunchRuntime,
 
@@ -366,16 +457,16 @@ export function defaultLaunchDeps(): LaunchDeps {
 		},
 
 		async recoverProvider() {
-			process.stderr.write(chalk.red("✗  No usable model credentials configured.\n\n"));
+			process.stderr.write(chalk.red(`✗  ${MODEL_CREDENTIALS_MISSING_MESSAGE}\n\n`));
 			const go = await deps.operator.ask({
 				type: "confirm",
 				question: "   Configure now?",
 				default: true,
 			});
 			if (!go) {
-				console.error(chalk.dim("   Run `refarm sow` when ready."));
-				console.error(chalk.dim("   Inspect route: `refarm model current`."));
-				console.error(chalk.dim("   List providers: `refarm model providers`."));
+				for (const line of missingModelCredentialDeferredLines()) {
+					console.error(chalk.dim(`   ${line}`));
+				}
 				return false;
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
@@ -482,32 +573,35 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure model credentials:    ") + chalk.cyan(refarmCommand(["sow"])),
+			chalk.dim("   Configure model credentials:    ") +
+				chalk.cyan(MODEL_CREDENTIALS_SETUP_COMMAND),
 		);
 		console.error(
 			chalk.dim("   Inspect current model route:     ") +
-				chalk.cyan(refarmCommand(["model", "current"])),
+				chalk.cyan(MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND),
 		);
 		console.error(
 			chalk.dim("   List provider defaults:         ") +
-				chalk.cyan(refarmCommand(["model", "providers"])),
+				chalk.cyan(MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND),
 		);
 		return;
 	}
 
 	if (!r.providerConfigured) {
-		console.error(chalk.red("✗  No usable model credentials configured.\n"));
-		console.error(chalk.dim("   Set up credentials: ") + chalk.cyan(refarmCommand(["sow"])));
+		console.error(chalk.red(`✗  ${MODEL_CREDENTIALS_MISSING_MESSAGE}\n`));
 		console.error(
-			chalk.dim("   Inspect route:      ") + chalk.cyan(refarmCommand(["model", "current"])),
+			chalk.dim("   Set up credentials: ") + chalk.cyan(MODEL_CREDENTIALS_SETUP_COMMAND),
 		);
 		console.error(
-			chalk.dim("   List providers:     ") + chalk.cyan(refarmCommand(["model", "providers"])),
+			chalk.dim("   Inspect route:      ") + chalk.cyan(MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND),
+		);
+		console.error(
+			chalk.dim("   List providers:     ") + chalk.cyan(MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +
-				chalk.cyan("ollama serve") +
-				chalk.dim("  (then refarm sow)"),
+				chalk.cyan(MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND) +
+				chalk.dim(`  (then ${MODEL_CREDENTIALS_SETUP_COMMAND})`),
 		);
 		return;
 	}
@@ -528,4 +622,20 @@ export function printOnboarding(): void {
 	console.log(chalk.dim("\n  The Refarm runtime starts automatically on first use."));
 	console.log();
 	console.log(chalk.dim("Need help?  ") + chalk.cyan(RUNTIME_DOCTOR_COMMAND));
+}
+
+
+/** PURE-ish. The runtime binary on PATH, or nothing. The launcher's own fallback looks here; the
+ *  selection above it has to look in the same places or the two disagree. */
+function tractorOnPath(): string | null {
+	const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+	for (const dir of dirs) {
+		const candidate = path.join(dir, "tractor");
+		try {
+			if (fs.statSync(candidate).isFile()) return candidate;
+		} catch {
+			// Not here; keep looking.
+		}
+	}
+	return null;
 }

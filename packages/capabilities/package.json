@@ -7,12 +7,12 @@
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
 		},
 		"./envelope": {
-			"types": "./dist/envelope.d.ts",
-			"import": "./dist/envelope.js"
+			"import": "./dist/envelope.js",
+			"types": "./dist/envelope.d.ts"
 		}
 	},
 	"files": [

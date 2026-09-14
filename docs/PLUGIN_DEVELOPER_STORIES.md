@@ -543,3 +543,26 @@ O `PluginManifest` é o que o usuário vê antes de instalar. Cada campo é uma 
 - [ADR-037: Estratégia de Escalada de Infraestrutura](../specs/ADRs/ADR-037-infrastructure-escalation-strategy.md)
 - [ADR-044: Plugin Loading no Browser](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md)
 - [WIT Interface do Plugin](../wit/refarm-sdk.wit)
+
+## Rebuild → install → verify, for refarm's own agent plugin
+
+The example above builds a THIRD-PARTY plugin and copies its artifact by hand. Refarm's own agent
+has a package script for the same job, and the difference is the part that bites:
+
+```bash
+pnpm --filter @refarm.dev/agent run build:wasm   # compiles AND republishes packages/agent/dist/agent.wasm
+refarm plugin install
+refarm runtime restart
+refarm context --json                            # builtPluginSha vs the loaded plugin's sha256
+```
+
+**Why the package script and not bare `cargo component build --release`:** that command compiles and
+stops. It does not copy to `packages/agent/dist/agent.wasm`, which is the file `refarm plugin
+install` reads — so a rebuild followed by an install leaves the OLD code installed, and both
+commands report success. The build was real; the install was of something else.
+
+**Why the last line:** installing does not reload a running node, and `refarm context --json` is what
+tells you which artifact is actually loaded. It carries `builtPluginSha` beside the loaded plugin's
+`sha256` and reports a divergence when they differ. Check it rather than assuming the install took —
+"I rebuilt it" and "the node is running it" are two facts, and only one of them is visible from the
+build command's exit code.

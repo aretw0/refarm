@@ -522,7 +522,10 @@ fn run_instantiation_benchmark() -> Result<BenchReport> {
         }
         let sync = make_sync(":memory:")?;
         let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
-            .context("PluginHost::new")?;
+            .context("PluginHost::new")?
+            // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+            // instantiation cost, not the integrity gate, so wildcard-waive it.
+            .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
         // Warm one load so page-cache / JIT-compile costs don't skew the first.
         let _warm = host.load(&fixture, &sync).await.context("warm load")?;
@@ -566,6 +569,41 @@ fn run_reload_benchmark() -> Result<BenchReport> {
                 fixture.display()
             ));
         }
+        // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+        // reload cost, not the integrity gate. TractorNativeConfig has no injection
+        // seam for this (unlike the bare PluginHost::new() sites above), so declare it
+        // via the sovereign fs config directly — a one-shot process, so no restore needed.
+        //
+        // The shared fixtures directory (crash-plugin.wasm/http-plugin.wasm sit beside this
+        // one, and a manifest is resolved by PARENT DIRECTORY) never gets a plugin.json of
+        // its own — the guessed file-stem id must never reach the config-declared route (see
+        // `resolve_under_development_at_load`'s doc), so this copies the fixture into an
+        // isolated dir with its own manifest naming its REAL exported identity instead.
+        let dev_dir = tempfile::tempdir().context("tempdir for pluginDevelopment declaration")?;
+        std::fs::create_dir_all(dev_dir.path().join(".refarm"))
+            .context("mkdir .refarm for pluginDevelopment declaration")?;
+        std::fs::write(
+            dev_dir.path().join(".refarm/config.json"),
+            r#"{"pluginDevelopment":{"null-plugin":{"declaredAt":"2026-08-26"}}}"#,
+        )
+        .context("write pluginDevelopment declaration")?;
+        std::env::set_var("SOVEREIGN_BASE", dev_dir.path());
+        std::env::set_var("SOVEREIGN_DIR", ".refarm");
+
+        let plugin_dir = dev_dir.path().join("plugin");
+        std::fs::create_dir_all(&plugin_dir).context("mkdir isolated plugin dir")?;
+        let fixture = plugin_dir.join("plugin.wasm");
+        std::fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/null-plugin.wasm"),
+            &fixture,
+        )
+        .context("copy null-plugin.wasm fixture")?;
+        std::fs::write(
+            plugin_dir.join("plugin.json"),
+            r#"{"id":"null-plugin","version":"0.1.0","entry":"plugin.wasm","observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]}}"#,
+        )
+        .context("write plugin.json")?;
+
         let tractor = TractorNative::boot(TractorNativeConfig {
             namespace: ":memory:".to_string(),
             port: 0,
@@ -646,7 +684,10 @@ fn run_grant_benchmark() -> Result<BenchReport> {
         }
         let sync = make_sync(":memory:")?;
         let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
-            .context("PluginHost::new")?;
+            .context("PluginHost::new")?
+            // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+            // instantiation cost, not the integrity gate, so wildcard-waive it.
+            .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
         // Warm one load so page-cache / JIT-compile costs don't skew the first.
         let _warm = host.load(&fixture, &sync).await.context("warm load")?;

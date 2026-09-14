@@ -184,6 +184,14 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
      owner; NOT worth a sweep. `VITE_REFARM_VERSION` (in `tractor-ts`, `homestead`)
      is a distinct build-time Vite var with a `"0.1.0-solo-fertil"` fallback.
 
+     **Matured 2026-08-01:** the physical default remains app-owned, but the
+     directory ROLES are now a brand-agnostic SDK contract. `@refarm.dev/root`
+     exposes `sovereignDirectories(absoluteRoot)` and the Refarm app injects
+     `REFARM_HOME || ~/.refarm`. Central operator-state consumers use that adapter;
+     plugins and generic packages must not derive `.refarm` themselves. This
+     preserves existing nodes while allowing a future explicit XDG, Termux, or
+     system-service adapter. See `specs/features/sovereign-directory-layout.md`.
+
    - **(c) per-package tuning knobs** — `REFARM_SIDECAR_URL` (capability-host),
      `REFARM_SIDE_REQUEST_TIMEOUT_MS` (sidecar-client), `REFARM_NAMESPACE` (spawn
      env), `REFARM_LOG_LEVEL`, etc. Survey finding: these are ALREADY injectable

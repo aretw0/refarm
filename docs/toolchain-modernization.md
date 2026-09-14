@@ -110,7 +110,7 @@ follow-up, not done here.
    documented above.
 2. ✅ Reconcile the two pre-existing stale release-selection snapshots surfaced
    while surveying this (release-engine + apps/site now track the 23-package
-   `vault-seed-ready` policy).
+   `consumer-ready` policy).
 3. ✅ Astro 6 → 7 (28d8490f) — zero breaking findings; all apps build + check
    clean on 7.0.3; brought Rolldown-Vite/oxc into the stack.
 4. ✅ Formatter (P5) — oxfmt adopted; whole repo swept (900 files green);

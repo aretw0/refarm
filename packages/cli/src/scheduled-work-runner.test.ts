@@ -56,6 +56,9 @@ describe("runDueScheduledWork", () => {
 
 		const report = await runDueScheduledWork({
 			cwd: root,
+			// ISS-075: the fire-once ledger is the NODE's, so a test that wants it inside its own
+			// temp tree says which node it is rather than inferring one from the working directory.
+			base: root,
 			now: "2026-06-27T09:00:00.000Z",
 			effortAdapter,
 		});
@@ -84,6 +87,9 @@ describe("runDueScheduledWork", () => {
 
 		await runDueScheduledWork({
 			cwd: root,
+			// ISS-075: the fire-once ledger is the NODE's, so a test that wants it inside its own
+			// temp tree says which node it is rather than inferring one from the working directory.
+			base: root,
 			now: "2026-06-27T09:00:00.000Z",
 			effortAdapter,
 		});
@@ -91,6 +97,9 @@ describe("runDueScheduledWork", () => {
 		// .refarm ledger connects them, exactly like a daemon restart.
 		const second = await runDueScheduledWork({
 			cwd: root,
+			// ISS-075: the fire-once ledger is the NODE's, so a test that wants it inside its own
+			// temp tree says which node it is rather than inferring one from the working directory.
+			base: root,
 			now: "2026-06-27T09:05:00.000Z",
 			effortAdapter,
 		});
@@ -121,6 +130,9 @@ describe("runDueScheduledWork", () => {
 
 		await runDueScheduledWork({
 			cwd: root,
+			// ISS-075: the fire-once ledger is the NODE's, so a test that wants it inside its own
+			// temp tree says which node it is rather than inferring one from the working directory.
+			base: root,
 			now: "2026-06-27T09:00:00.000Z",
 			effortAdapter,
 			ledger,
@@ -144,6 +156,9 @@ describe("runDueScheduledWork", () => {
 
 		const report = await runDueScheduledWork({
 			cwd: root,
+			// ISS-075: the fire-once ledger is the NODE's, so a test that wants it inside its own
+			// temp tree says which node it is rather than inferring one from the working directory.
+			base: root,
 			now: "2026-06-27T09:00:00.000Z",
 			effortAdapter,
 		});

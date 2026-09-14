@@ -16,7 +16,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 > Evidência de consumidor (2026-06-27): `scripts/ci/test-vault-seed-release-consumer.mjs`
 > gera um vault fixture pelo manifest atual, lê `inventory.json` e prova que as
 > dependências `@refarm.dev/*` do `package.json` gerado estão cobertas pela
-> seleção `vault-seed-ready` e seus checks.
+> seleção `consumer-ready` e seus checks.
 
 ## V0 — Núcleo de Planejamento Determinístico
 
@@ -35,10 +35,10 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 ### TDD (Test Driven)
 - [x] Testes unitários de parsing de policy.
 - [x] Testes de ordenação topológica de dependências.
-- [x] Testes de integração com policy do Refarm e seleção `vault-seed-ready`
+- [x] Testes de integração com policy do Refarm e seleção `consumer-ready`
       via CLI JSON.
 - [x] Prova de consumidor gerado: vault fixture -> inventory/package -> seleção
-      `vault-seed-ready`. Policies oficiais de `vault-seed`/`agents-lab` ficam
+      `consumer-ready`. Policies oficiais de `vault-seed`/`agents-lab` ficam
       para quando esses projetos consumirem o pacote publicado ou um fixture próprio.
 
 ### DDD (Domain Delivery)

@@ -1,5 +1,10 @@
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { refarmCommand } from "../brand.js";
-import { defaultProviderModelRef, defaultScopedModelRef } from "../model-routing.js";
+import {
+	defaultProviderModelRef,
+	defaultScopedModelRef,
+	type ModelScope,
+} from "../model-routing.js";
 
 export const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 export const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
@@ -18,9 +23,16 @@ export const AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND = refarmCommand([
 
 export const SOW_INTERACTIVE_COMMAND = refarmCommand(["sow"]);
 export const SOW_JSON_COMMAND = refarmCommand(["sow", "--json"]);
+export const SOW_CLOUDFLARE_COMMAND = refarmCommand(["sow", "--cloudflare"]);
+export const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand(["sow", "--cloudflare", "--json"]);
 export const MODEL_CURRENT_JSON_COMMAND = refarmCommand(["model", "current", "--json"]);
 export const MODEL_DOCTOR_JSON_COMMAND = refarmCommand(["model", "doctor", "--json"]);
 export const MODEL_PROVIDERS_JSON_COMMAND = refarmCommand(["model", "providers", "--json"]);
+/** The ONE surface that answers which meter refused and how much is left, per account.
+ *
+ * ISS-157: the refusal NAMES this instead of racing it — fetching the numbers would put a
+ * second request to the provider that just refused on a failure path. */
+export const CREDENTIAL_QUOTA_JSON_COMMAND = refarmCommand(["credential", "quota", "--json"]);
 export const OPERATOR_LINKS_CONFIG_COMMAND = refarmCommand([
 	"config",
 	"get",
@@ -50,3 +62,26 @@ export const OPENAI_MONITOR_MODEL_JSON_COMMAND = refarmCommand([
 	OPENAI_MONITOR_REF,
 	"--json",
 ]);
+
+export function sowModelJsonCommand(modelRef: string): string {
+	return refarmCommand(["sow", "--model", quoteCommandArg(modelRef), "--json"]);
+}
+
+export function modelRefJsonCommand(modelRef: string): string {
+	return refarmCommand(["model", quoteCommandArg(modelRef), "--json"]);
+}
+
+export function setScopedModelJsonCommand(scope: ModelScope, modelRef: string): string {
+	return refarmCommand([
+		"model",
+		"set",
+		"--scope",
+		scope,
+		quoteCommandArg(modelRef),
+		"--json",
+	]);
+}
+
+export function modelBaseUrlJsonCommand(baseUrl: string): string {
+	return refarmCommand(["model", "base-url", baseUrl, "--json"]);
+}

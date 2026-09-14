@@ -1,6 +1,6 @@
 # Feature: Farmhand Task Execution — effort-contract-v1
 
-**Status**: In Progress
+**Status**: Implemented with a known coordination-boundary debt
 **Version**: v0.1.0
 **Owner**: Arthur Silva
 
@@ -8,7 +8,55 @@
 
 ## Summary
 
-Completes the `FarmhandTask` execution pipeline and establishes `effort-contract-v1` as an open capability contract for structured work items. An *Effort* is the directional context (the "why") — mapping to any platform's work item (GitHub Issue, Linear ticket, commit, CLI dispatch). A *Task* is the atomic execution unit inside an effort: call a loaded plugin function with given args. Farmhand executes tasks from two bundled transports (File and HTTP), while third-party adapters (GitHub Issues, Linear, Jira) can implement the same interface as Refarm plugins — no changes to the core needed.
+Completes the `FarmhandTask` execution pipeline and establishes `effort-contract-v1` as an open capability contract for structured work items. An *Effort* is the directional context (the "why") — mapping to any platform's work item (GitHub Issue, Linear ticket, commit, CLI dispatch). A *Task* is the atomic execution unit inside an effort: call a loaded plugin function with given args. Refarm currently exposes file, HTTP, and channel dispatch paths; their implementation is functional but not symmetric at the package boundary.
+
+## Current Implementation Reality (2026-08-06)
+
+| Concern | Current implementation |
+|---|---|
+| Neutral effort contract | `packages/effort-contract-v1` owns the types and adapter interface. |
+| File client | Private `FileTransportClient` in `apps/refarm/src/commands/task-support.ts`. |
+| HTTP client | Private `HttpTransportClient` in the same app file; it implements `TaskOperationsAdapter` and calls `/efforts`. |
+| Channel client | Private `HttpChannelTransportClient`; `dispatch-surface` supplies channel capabilities and path construction. |
+| HTTP server ingress | `HttpSidecar` in `apps/farmhand/src/transports/http.ts`. |
+| Neutral server boundary | `EffortOperations` in `apps/farmhand/src/effort-operations.ts`; HTTP and channel ingress depend on it. |
+| Effort persistence port | `EffortRepository` is the transport-neutral persistence dependency consumed by lifecycle policy. |
+| Filesystem persistence | `FileEffortRepository` implements that port and owns effort/result JSON and log NDJSON formats. |
+| Summary policy | Pure `summarizeEfforts` and `summarizeEffortWindow` functions own status aggregation with an explicit clock. |
+| Queue policy | `EffortQueue` owns serial scheduling, de-duplication, and promotion of queued retries to `force`. |
+| Execution state | `EffortExecutionState` owns in-flight admission, cancellation requests, and their telemetry counters. |
+| Processing policy | `EffortProcessor` owns task attempts, retry limits, result transitions, lifecycle logs, cancellation observation, and executor hooks; tests prove it against an in-memory repository. |
+| Shared server operations | `EffortCoordinator` implements `EffortOperations`, composing submit/retry/cancel, telemetry, queue wiring, state, processor, and persistence. HTTP receives it directly at boot. |
+| File ingress | `FileTransportAdapter` constructs the file repository, delegates compatibility calls to the coordinator, and owns only file/control watching. |
+
+The HTTP path therefore **exists end to end**, but the reusable `HttpTransportAdapter`
+described by the original design was not delivered as a block. Its role was split
+between an app-private HTTP client and an app-private server ingress. The server-side
+dependency is expressed through the neutral `EffortOperations` boundary, whose current
+implementation is `EffortCoordinator`. Filesystem wire formats live in
+`FileEffortRepository` behind the neutral `EffortRepository` port. Status aggregation,
+serial scheduling, mutable execution state, task processing, and operations coordination
+are separate policies. `EffortProcessor` and `EffortCoordinator` do not depend on HTTP,
+file watching, or the filesystem implementation. `HttpSidecar` receives the coordinator
+directly; `FileTransportAdapter` remains the file ingress and a compatibility facade.
+Diagrams must show this composition rather than presenting file and HTTP as symmetric
+implementations.
+
+The safe refactoring order is:
+
+1. [Done] Name the transport-neutral server operations required by ingress adapters.
+2. [Done] Extract filesystem persistence and wire formats from `FileTransportAdapter`.
+3. [Done] Extract status aggregation and window calculation as pure policy.
+4. [Done] Extract serial queueing and retry promotion without changing behavior.
+5. [Done] Extract in-flight and cancellation-request state without changing behavior.
+6. [Done] Extract processing policy and task lifecycle orchestration without changing behavior.
+7. [Done] Extract submit/retry/cancel coordination into the neutral `EffortCoordinator` implementation.
+8. [Done] Make file watching and `HttpSidecar` separate ingress adapters over that coordinator.
+9. Extract the HTTP client into a reusable package only when a second consumer needs it.
+10. Prove file/HTTP behavioral parity against the same conformance cases before changing defaults.
+
+Do not implement a second server-side execution path merely to satisfy the old name;
+that would duplicate lifecycle, persistence, and control semantics instead of fixing the boundary.
 
 ---
 
@@ -24,7 +72,7 @@ Completes the `FarmhandTask` execution pipeline and establishes `effort-contract
 
 **As a** third-party contributor
 **I want** `effort-contract-v1` to define a stable, platform-neutral interface
-**So that** I can build a GitHub Issues adapter that Farmhand consumes without touching Refarm internals
+**So that** I can build a GitHub Issues adapter that a Refarm host can compose without changing the contract
 
 ---
 
@@ -52,7 +100,10 @@ Completes the `FarmhandTask` execution pipeline and establishes `effort-contract
 
 6. **Given** an `EffortTransportAdapter` implementation
    **When** it satisfies the `effort-contract-v1` interface
-   **Then** it can be installed as a Refarm plugin and used without modifying Farmhand
+   **Then** it can be composed by a host without changing the contract
+
+Plugin installation of arbitrary third-party effort adapters remains architectural intent;
+the current Farmhand composition does not dynamically load such an adapter from the contract alone.
 
 ---
 
@@ -65,12 +116,21 @@ packages/effort-contract-v1          → Effort, Task, TaskResult, EffortResult
                                        EffortSourceAdapter, EffortTransportAdapter
 
 apps/farmhand
+  ├── src/effort-execution-state.ts    → in-flight and cancellation-request state
+  ├── src/effort-coordinator.ts        → neutral operations coordination
+  ├── src/effort-operations.ts         → neutral server operations boundary
+  ├── src/effort-processor.ts          → task attempts and lifecycle transitions
+  ├── src/effort-queue.ts              → serial scheduling and de-duplication
+  ├── src/effort-repository.ts         → neutral persistence port
+  ├── src/effort-summary.ts            → pure status and telemetry-window policy
   ├── src/task-executor.ts            → completes handleFarmhandTask (CRDT path)
+  ├── src/transports/file-effort-repository.ts → JSON/NDJSON effort persistence
   ├── src/transports/file.ts          → FileTransportAdapter (fs.watch on ~/.refarm/tasks/)
   └── src/transports/http.ts          → HTTP sidecar on port 42001
 
 apps/refarm
-  └── src/commands/task.ts            → refarm task run + refarm task status
+  ├── src/commands/task.ts            → refarm task run + refarm task status
+  └── src/commands/task-support.ts    → private file, HTTP, and channel clients
 ```
 
 **Semantic model:**
@@ -86,15 +146,16 @@ Effort (context + direction — only the user knows why)
 **Transport paths (independent, coexist in same process):**
 
 - **File transport**: writes/watches `~/.refarm/tasks/` and `~/.refarm/task-results/`
-- **HTTP sidecar**: `POST /efforts` + `GET /efforts/:id` on port 42001
+- **HTTP client**: app-private `HttpTransportClient` calls the sidecar
+- **HTTP sidecar**: `POST /efforts` + `GET /efforts/:id` on port 42001, depending on `EffortOperations`; boot currently supplies `FileTransportAdapter`
 - **CRDT path** (existing): `tractor.onNode("FarmhandTask")` → `tractor.storeNode(FarmhandTaskResult)`
 
 **Key decisions:**
 
 - `effort-contract-v1` has zero runtime dependencies — pure types and interfaces
-- Third-party adapters are Refarm plugins implementing `EffortSourceAdapter` — no new extension mechanism
+- `EffortSourceAdapter` permits host composition; dynamic Farmhand plugin activation is not implemented by this feature
 - Default CLI transport is `file` (works without Farmhand running)
-- HTTP sidecar is optional — Farmhand boots cleanly without it
+- HTTP transport is a client/server path, not a standalone reusable adapter package
 
 ---
 
@@ -153,12 +214,12 @@ export const EFFORT_CAPABILITY = Symbol("EffortTransportAdapter");
 
 **Unit tests (TDD):**
 
-- [ ] `effort-contract-v1` — conformance tests: submit → query round-trip for any adapter
-- [ ] `FileTransportAdapter` — submit writes file; watcher picks up + writes result
-- [ ] `HttpTransportAdapter` — POST /efforts returns effortId; GET /efforts/:id returns EffortResult
-- [ ] `task-executor` — plugin found → ok result; plugin missing → error result; plugin throws → error result
-- [ ] `refarm task run` — builds Effort with single Task; calls adapter.submit; prints effortId
-- [ ] `refarm task status` — calls adapter.query; prints each TaskResult; `--watch` polls until terminal status
+- [x] `effort-contract-v1` — conformance tests exercise submit/query behavior
+- [x] `FileTransportAdapter` — submit, watcher, result, logs, and lifecycle behavior
+- [x] HTTP path — client requests plus `HttpSidecar` submit/query/control behavior
+- [x] `task-executor` — success and failure execution paths
+- [x] `refarm task run` — builds and submits an Effort
+- [x] `refarm task status` — queries results and supports bounded watch polling
 
 ---
 
@@ -171,21 +232,28 @@ export const EFFORT_CAPABILITY = Symbol("EffortTransportAdapter");
 
 **TDD:**
 
-- [ ] `effort-contract-v1` conformance tests
-- [ ] `FileTransportAdapter` tests
-- [ ] `HttpTransportAdapter` tests
-- [ ] `task-executor` unit tests
-- [ ] `refarm task run` + `refarm task status` tests
+- [x] `effort-contract-v1` conformance tests
+- [x] `FileTransportAdapter` tests
+- [x] HTTP client/sidecar path tests
+- [x] `task-executor` unit tests
+- [x] `refarm task run` + `refarm task status` tests
 
 **DDD:**
 
-- [ ] Scaffold `packages/effort-contract-v1`
-- [ ] Complete `handleFarmhandTask` → `src/task-executor.ts`
-- [ ] Implement `FileTransportAdapter` in Farmhand
-- [ ] Implement HTTP sidecar in Farmhand
-- [ ] Add `refarm task` command to `apps/refarm`
-- [ ] Wire both transports on Farmhand boot
-- [ ] Smoke gate: all workspaces green
+- [x] Scaffold `packages/effort-contract-v1`
+- [x] Complete task execution in `src/task-executor.ts`
+- [x] Implement `FileTransportAdapter` in Farmhand
+- [x] Implement HTTP sidecar in Farmhand
+- [x] Add `refarm task` command to `apps/refarm`
+- [x] Wire file and HTTP paths on Farmhand boot
+- [x] Name the transport-neutral `EffortOperations` boundary used by HTTP and channel ingress
+- [x] Extract effort/result/log persistence into `FileEffortRepository`
+- [x] Extract summary and telemetry-window policy with an explicit clock
+- [x] Extract serial effort scheduling into `EffortQueue`
+- [x] Extract mutable in-flight and cancellation state into `EffortExecutionState`
+- [x] Extract task processing into `EffortProcessor` over the neutral `EffortRepository` port
+- [x] Extract transport-neutral `EffortCoordinator`; HTTP receives it directly at boot
+- [ ] Demonstrate a second consumer before extracting the app-private HTTP client
 
 ---
 

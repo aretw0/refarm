@@ -26,6 +26,7 @@ export function buildWorkspaceExecutionStatus(
 		packageManager?: PackageManagerName;
 	} = {},
 ): WorkspaceExecutionStatus {
+	// os-resolution: project — which executor the PROJECT supports, read from its own turbo and lock files
 	const cwd = options.cwd ?? process.cwd();
 	const env = options.env ?? process.env;
 	const packageManager = options.packageManager ?? detectSharedPackageManager({ cwd, env });
@@ -52,6 +53,7 @@ export function buildWorkspaceExecutionStatus(
 	};
 }
 
+// os-resolution: project — which executor the PROJECT supports, read from its own turbo and lock files
 export function workspaceCanUseTurboAdapter(cwd = process.cwd()): boolean {
 	return baseWorkspaceCanUseTurboAdapter(cwd);
 }

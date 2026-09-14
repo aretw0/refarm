@@ -20,9 +20,22 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PACKAGES_DIR = path.join(ROOT, "packages");
 
-/** Surveyed brand literals deliberately deferred (see ADR-087 follow-on notes). */
+/**
+ * Surveyed brand literals deliberately deferred (see ADR-087 follow-on notes).
+ *
+ * NOT a list of things nobody got to. Each entry is a file where the brand is a VALUE rather than
+ * a label — a vocabulary id, a default team name, a path segment — and the third test below
+ * FORCES an entry out the moment its file stops carrying one, so the list can only shrink.
+ *
+ * `cli/src/workspace-declaration.ts` joined on 2026-08-11 for the same reason
+ * `config/src/workspaces-config.js` was already here: `WORKSPACE_KINDS` is
+ * `["refarm", "consumer", "lab", "vault", "project"]`, so the brand IS one of five kind ids, and
+ * that file compares an inferred kind against it. Debranding the comparison would mean debranding
+ * the vocabulary, which is a data migration of every declared workspace — not a rename (ISS-114).
+ */
 const ALLOWLIST = new Set([
 	"capabilities/src/ide-projector.ts", // injectable namespace param defaults to the brand
+	"cli/src/workspace-declaration.ts", // compares against that same kind id when inferring a kind
 	"config/src/workspaces-config.js", // workspace-kind vocabulary includes the app's own kind id
 	"infra-cloudflare/src/services/turbo-cache/provision.ts", // repo-infra default team name
 	"infra-turbo-cache/src/plan.ts", // repo-infra default team name

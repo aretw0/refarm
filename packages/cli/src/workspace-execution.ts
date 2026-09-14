@@ -44,6 +44,7 @@ export function buildWorkspaceExecutionStatus(
 		packageManager?: WorkspaceExecutionPackageManager;
 	} = {},
 ): WorkspaceExecutionStatus {
+	// os-resolution: project — which executor the PROJECT supports, read from its own turbo and lock files
 	const cwd = options.cwd ?? process.cwd();
 	const env = options.env ?? process.env;
 	const rootResolution = findWorkspaceExecutionRoot(cwd);
@@ -146,6 +147,7 @@ function directoryHasEntries(dir: string): boolean {
 	}
 }
 
+// os-resolution: project — which executor the PROJECT supports, read from its own turbo and lock files
 export function workspaceCanUseTurboAdapter(cwd = process.cwd()): boolean {
 	return buildWorkspaceExecutionStatus({ cwd }).adapters.turbo.available;
 }

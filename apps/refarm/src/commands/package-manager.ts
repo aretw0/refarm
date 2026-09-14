@@ -6,6 +6,7 @@ import {
 	PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS,
 	packageBinaryCommand as createSharedPackageBinaryCommand,
 	createPackageScriptCommand as createSharedPackageScriptCommand,
+	packageWorkspaceDeployCommand as createSharedWorkspaceDeployCommand,
 	detectPackageManager as detectSharedPackageManager,
 	packageManagerOverrideDiagnostic,
 	type PackageManagerName,
@@ -76,6 +77,7 @@ export function buildPackageManagerStatus(
 	} = {},
 ): PackageManagerStatus {
 	const env = options.env ?? process.env;
+	// os-resolution: project — which package manager the PROJECT declares, read from its own lockfile
 	const cwd = options.cwd ?? process.cwd();
 	const diagnostic = packageManagerOverrideDiagnostic(env);
 	const packageManager = detectSharedPackageManager({ cwd, env });
@@ -175,6 +177,7 @@ export function createPackageManagerCommand(deps?: {
 		)
 		.action((options: { json?: boolean }) => {
 			const status = buildPackageManagerStatus({
+				// os-resolution: project — which package manager the PROJECT declares, read from its own lockfile
 				cwd: deps?.cwd?.() ?? process.cwd(),
 				env: deps?.env ?? process.env,
 			});
@@ -201,6 +204,23 @@ export function createPackageScriptCommand(
 ): ProcessHandoffSpec {
 	warnInvalidPackageManagerOverride(options.env);
 	const command = createSharedPackageScriptCommand(options);
+	return {
+		packageManager: command.packageManager,
+		command: command.command,
+		args: command.args,
+		display: command.display,
+	};
+}
+
+/** Assemble one workspace package into a self-contained tree. pnpm-only by nature — see the
+ *  resolver in `@refarm.dev/config`, which refuses rather than assembling the wrong tree. */
+export function createWorkspaceDeployCommand(
+	packageName: string,
+	directory: string,
+	options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+): ProcessHandoffSpec {
+	warnInvalidPackageManagerOverride(options.env);
+	const command = createSharedWorkspaceDeployCommand(packageName, directory, options);
 	return {
 		packageManager: command.packageManager,
 		command: command.command,

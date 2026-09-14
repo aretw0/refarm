@@ -1,3 +1,4 @@
+import { declaredBase } from "./declared-base.js";
 import path from "node:path";
 
 export const WORKSPACE_EXECUTION_ADAPTERS = Object.freeze(["auto", "turbo", "direct-script"]);
@@ -23,7 +24,9 @@ export function parseWorkspaceRemoteCacheProvider(value) {
 }
 
 export function declaredWorkspacesFromConfig(config, options = {}) {
-	const baseDir = options.baseDir ?? process.cwd();
+	// The node base, never the cwd: these paths are declared in the NODE's config, so the
+	// same declaration must name the same directory from anywhere the command is run.
+	const baseDir = options.baseDir ?? declaredBase();
 	const workspaces = config?.workspaces;
 	if (!workspaces || typeof workspaces !== "object" || Array.isArray(workspaces)) return [];
 
@@ -51,6 +54,8 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 	const cache = normalizeWorkspaceCache(value.cache ?? value.execution?.cache);
 	const bridges = normalizeWorkspaceBridges(value.bridges);
 	const repository = normalizeWorkspaceRepository(value.repository);
+	const commands = normalizeWorkspaceCommands(value.commands);
+	const issues = normalizeWorkspaceIssues(value.issues);
 
 	return {
 		id,
@@ -61,7 +66,95 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 		cache,
 		repository,
 		bridges,
+		commands,
+		issues,
 	};
+}
+
+/** Providers with a real adapter behind them. GitHub/GitLab are designed but not built — do not
+ * add their names here until an adapter exists to back them. */
+const WORK_ITEM_PROVIDERS = Object.freeze(["project-json"]);
+
+/**
+ * A workspace's declared WORK ITEM SOURCE — where its issues/tickets live (e.g.
+ * `{ provider: "project-json", path: ".project/issues.json" }`). Task 4 reads this to pick an
+ * adapter. THREE states, never two:
+ *
+ * - `null` — UNDECLARED: no `issues` block at all, or one naming no provider (malformed). Never a
+ *   guess at a provider nobody named.
+ * - `{ provider, path }` — declared, and a real adapter exists for `provider`.
+ * - `{ provider, path, unsupported: true }` — declared, but no adapter exists for `provider` yet
+ *   (e.g. `github`, `gitlab` — designed in the spec's mapping table, not built). This is NOT the
+ *   same as `null`: the operator named a provider on purpose, and that fact must survive
+ *   normalisation and reach `resolveWorkspaceLedger`, which refuses with `provider_unsupported`
+ *   rather than silently falling through to the `project-json` convention path — see
+ *   `packages/cli/src/work-items/resolve.ts`.
+ *
+ * @param {unknown} value
+ * @returns {{ provider: string, path: string, unsupported?: true } | null}
+ */
+function normalizeWorkspaceIssues(value) {
+	if (!isRecord(value)) return null;
+	const provider = typeof value.provider === "string" ? value.provider.trim() : "";
+	if (!provider) return null;
+	const declaredPath =
+		typeof value.path === "string" && value.path.trim() ? value.path.trim() : ".project/issues.json";
+	if (!WORK_ITEM_PROVIDERS.includes(provider)) {
+		return { provider, path: declaredPath, unsupported: true };
+	}
+	return { provider, path: declaredPath };
+}
+
+/**
+ * A workspace's declared command ALLOWLIST — the named, bounded operations refarm may run in that
+ * workspace (e.g. `{ vpn: "pnpm --filter @rcdcp/serpro-vpn run vpn connect" }`). This is an
+ * operation catalog, NOT a shell: each `run` is normalized to an argv array (no shell, no
+ * metacharacter interpretation), and callers may only trigger a declared NAME — never arbitrary
+ * input. This is what lets a remote surface (a phone over the tailnet) operate a workspace's
+ * command without becoming a generic remote shell.
+ */
+function normalizeWorkspaceCommands(value) {
+	if (!isRecord(value)) return {};
+	const commands = {};
+	for (const [name, entry] of Object.entries(value)) {
+		if (typeof name !== "string" || !name.trim()) continue;
+		const run = normalizeCommandRun(typeof entry === "string" ? entry : entry?.run);
+		if (!run) continue;
+		const command = { run };
+		if (isRecord(entry)) {
+			if (typeof entry.cwd === "string" && entry.cwd.trim()) command.cwd = entry.cwd.trim();
+			if (typeof entry.description === "string" && entry.description.trim()) {
+				command.description = entry.description.trim();
+			}
+			// Remote admission is exact and fail-closed. Truthy strings/numbers do not open
+			// an operation accidentally; only the literal boolean written through reviewed
+			// authoring survives normalization.
+			if (entry.remote === true) command.remote = true;
+			// Result projection is closed just like remote admission: arbitrary format names
+			// disappear rather than becoming an accidental promise to parse stdout.
+			if (entry.result === "operation-result.v1") command.result = "operation-result.v1";
+			// PROVENANCE — the same distinction `workspace_source` draws for a session's
+			// attribution (apps/refarm/src/commands/ask.ts), one layer down: absence means
+			// the operator authored this command directly (`refarm workspace command add`);
+			// `"workspace-offer"` means it was accepted from that workspace's own declaration
+			// (`refarm workspace sync`). Closed exactly like `remote`/`result` above — an
+			// unrecognized value disappears rather than being trusted as a fact nobody wrote.
+			if (entry.source === "workspace-offer") command.source = "workspace-offer";
+		}
+		commands[name.trim()] = command;
+	}
+	return commands;
+}
+
+/** Normalize a declared command to an argv array — an array as-is, or a string split on
+ * whitespace (bounded, no shell). Returns null for anything unusable. */
+function normalizeCommandRun(run) {
+	if (Array.isArray(run)) {
+		const argv = run.filter((token) => typeof token === "string" && token.length > 0);
+		return argv.length > 0 ? argv : null;
+	}
+	if (typeof run === "string" && run.trim()) return run.trim().split(/\s+/);
+	return null;
 }
 
 function normalizeWorkspaceExecution(value) {

@@ -1,5 +1,24 @@
 import type { StatusJson } from "@refarm.dev/cli/status";
+import { accessSync, constants as fsConstants } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { resolveNodeContextMetadata } from "../../src/utils/context-metadata.js";
+
+/** The Task 3 connection-finding tests below resolve `/usr/bin/true` against the REAL
+ * PATH (via `resolveBinary`, transitively through `buildConnectionDoctorRecommendations`)
+ * to exercise a "this binary resolves fine" case — fail loudly up front rather than let
+ * a missing binary make an unrelated assertion pass for the wrong reason, same doctrine
+ * as `connection-status.test.ts`. */
+function requireBinary(path: string): void {
+	try {
+		accessSync(path, fsConstants.X_OK);
+	} catch {
+		throw new Error(
+			`${path} is required for this test but is not present/executable on this host`,
+		);
+	}
+}
+requireBinary("/usr/bin/true");
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
 	mockResolveStatusPayload: vi.fn(),
@@ -13,6 +32,7 @@ vi.mock("../../src/commands/status.js", () => ({
 import {
 	buildRefarmDoctorRecommendations,
 	buildRefarmDoctorReport,
+	createDoctorCommand,
 	doctorCommand,
 } from "../../src/commands/doctor.js";
 
@@ -71,8 +91,8 @@ describe("buildRefarmDoctorReport", () => {
 					command: "refarm",
 					profile: "dev",
 					version: "1.2.3",
-					packageManager: "pnpm",
 				},
+				workingTree: { path: "/repo", packageManager: "pnpm" },
 			},
 		);
 
@@ -106,7 +126,9 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.nextCommands).toEqual(["refarm runtime ensure --wait --next-command"]);
 		expect(report.nextCommand).toBe("refarm runtime ensure --wait --next-command");
 		expect(report.host.version).toBe("1.2.3");
-		expect(report.host.packageManager).toBe("pnpm");
+		// ISS-093: the package manager left `host` — a host fact cannot change with the caller's
+		// directory — and the tree it was read from is now reported beside it.
+		expect(report.workingTree).toEqual({ path: "/repo", packageManager: "pnpm" });
 	});
 
 	it("fails on warnings when failOnWarnings is enabled", () => {
@@ -116,6 +138,105 @@ describe("buildRefarmDoctorReport", () => {
 		);
 		expect(report.ok).toBe(false);
 		expect(report.failureCount).toBe(0);
+		expect(report.warningCount).toBe(1);
+	});
+
+	// --- Task 3: a declared connection with an unresolvable binary or a catalog issue
+	// becomes a doctor finding. `buildConnectionDoctorRecommendations` has its own
+	// dedicated tests (connection-doctor.test.ts); these confirm it is actually WIRED
+	// into `buildRefarmDoctorReport`'s warnings/recommendations/nextCommands, and stays
+	// a `warning`, never a `failure`.
+
+	it("folds a connection with a missing binary into warnings and recommendations", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			connectionConfig: {
+				connections: {
+					vpn: {
+						establish: ["definitely-not-a-real-binary-xyz"],
+						probe: { run: ["/usr/bin/true"] },
+					},
+				},
+			},
+		});
+
+		expect(report.failureCount).toBe(0);
+		expect(report.warningCount).toBe(1);
+		expect(report.warnings).toEqual(["connection:binary-missing:vpn:establish"]);
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "connection:binary-missing:vpn:establish",
+				severity: "warning",
+				command: "refarm connection status --json",
+			}),
+		);
+		// A missing connection binary must never gate `ok` by itself — only
+		// `--fail-on-warnings` (a warning, never a failure) does that.
+		expect(report.ok).toBe(true);
+		expect(report.nextCommands).toContain("refarm connection status --json");
+	});
+
+	it("fails on a connection finding only when failOnWarnings is enabled", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			failOnWarnings: true,
+			connectionConfig: {
+				connections: {
+					vpn: { establish: ["definitely-not-a-real-binary-xyz"], probe: { run: [] } },
+				},
+			},
+		});
+		expect(report.ok).toBe(false);
+	});
+
+	it("produces no connection findings when the catalog is empty (the default)", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]));
+		expect(report.warningCount).toBe(0);
+		expect(report.warnings).toEqual([]);
+		expect(report.recommendations).toEqual([]);
+	});
+
+	it("adds a warning when REFARM_HOME and SILO_HOME point to different homes", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			context: {
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned", homeRef: "/tmp/refarm-home" },
+				credentials: { policy: "node", storeRef: "/tmp/silo-home" },
+				runtime: { policy: "node" },
+				sovereignHome: "/tmp/refarm-home",
+				credentialStoreHome: "/tmp/silo-home",
+				homesAligned: false,
+			},
+		});
+
+		expect(report.warningCount).toBe(1);
+		expect(report.warnings).toContain("context:home-divergence");
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "context:home-divergence",
+				severity: "warning",
+				command: "refarm model current --json",
+			}),
+		);
+		expect(report.nextCommands).toContain("refarm model current --json");
+		expect(report.ok).toBe(true);
+	});
+
+	it("treats home divergence as blocking only when failOnWarnings is enabled", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			failOnWarnings: true,
+			context: {
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned", homeRef: "/tmp/refarm-home" },
+				credentials: { policy: "node", storeRef: "/tmp/silo-home" },
+				runtime: { policy: "node" },
+				sovereignHome: "/tmp/refarm-home",
+				credentialStoreHome: "/tmp/silo-home",
+				homesAligned: false,
+			},
+		});
+
+		expect(report.ok).toBe(false);
 		expect(report.warningCount).toBe(1);
 	});
 });
@@ -276,6 +397,34 @@ describe("doctorCommand", () => {
 		logSpy.mockRestore();
 	});
 
+/**
+	 * ISS-100. These three tests assert on the FULL nextActions/warnings output, so every environment
+	 * reader has to be injected or they measure the machine they run on rather than the code. They
+	 * failed on a developer checkout (which has a gitignored .refarm/ beside it, and no SILO_HOME
+	 * declared) while passing in CI — the worst shape for a test, because the failure looks like a
+	 * regression to whoever is mid-slice and like nothing at all to CI.
+	 */
+	const HERMETIC_DOCTOR_DEPS = {
+		cwd: () => "/fake/root",
+		loadConfig: () => ({}),
+		readNodeDescriptor: () => null,
+		sovereignDivergences: () => [],
+		// `homesAligned` is the field the context:home-divergence finding reads. An empty stub leaves it
+	// falsy, which is itself a divergence — so the fixture states the ALIGNED case explicitly rather
+	// than half-mocking and getting a warning nobody asked for.
+	context: () =>
+		({
+			mode: "node",
+			binding: { kind: "detached", origin: "default" },
+			state: { policy: "node-owned", homeRef: "/fake/home/.refarm" },
+			credentials: { policy: "node", storeRef: "/fake/home/.refarm" },
+			runtime: { policy: "node" },
+			sovereignHome: "/fake/home/.refarm",
+			credentialStoreHome: "/fake/home/.refarm",
+			homesAligned: true,
+		}) as ReturnType<typeof resolveNodeContextMetadata>,
+	};
+	
 	it("emits the first blocking recovery action as JSON", async () => {
 		mockResolveStatusPayload.mockResolvedValue({
 			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
@@ -283,7 +432,7 @@ describe("doctorCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await doctorCommand.parseAsync(["--next-action", "--json"], {
+		await createDoctorCommand(HERMETIC_DOCTOR_DEPS).parseAsync(["--next-action", "--json"], {
 			from: "user",
 		});
 
@@ -341,7 +490,7 @@ describe("doctorCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await doctorCommand.parseAsync(["--next-command", "--json"], {
+		await createDoctorCommand(HERMETIC_DOCTOR_DEPS).parseAsync(["--next-command", "--json"], {
 			from: "user",
 		});
 
@@ -375,5 +524,69 @@ describe("doctorCommand", () => {
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
+	});
+
+	// --- Task 3: `createDoctorCommand` accepts injected `loadConfig`/`cwd`, so the
+	// wiring from "declared connection catalog" to "doctor JSON output" is exercised
+	// WITHOUT ever touching the real `.refarm/config.json`.
+
+	it("createDoctorCommand surfaces a connection finding via injected loadConfig, never touching the real config", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const loadConfigSpy = vi.fn().mockReturnValue({
+			connections: {
+				vpn: {
+					establish: ["definitely-not-a-real-binary-xyz"],
+					probe: { run: ["/usr/bin/true"] },
+				},
+			},
+		});
+
+		try {
+			await createDoctorCommand({ ...HERMETIC_DOCTOR_DEPS, loadConfig: loadConfigSpy }).parseAsync(
+				["--json"],
+				{ from: "user" },
+			);
+
+			expect(loadConfigSpy).toHaveBeenCalledWith("/fake/root");
+			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+			expect(output.warnings).toContain("connection:binary-missing:vpn:establish");
+			expect(output.recommendations).toContainEqual(
+				expect.objectContaining({
+					diagnostic: "connection:binary-missing:vpn:establish",
+					severity: "warning",
+					command: "refarm connection status --json",
+				}),
+			);
+			// A connection warning does not fail doctor by itself.
+			expect(output.ok).toBe(true);
+			expect(process.exitCode).toBeUndefined();
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
+
+	it("createDoctorCommand reports no connection findings when loadConfig throws (report, never fail shut)", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await createDoctorCommand({
+				// The reasoning this override was written with was right and did not go far enough
+				// (ISS-100): `sovereignDivergences` was pinned so this host's real sovereign state
+				// could not leak into `warnings`, but `scope:*` and `context:*` reach the same list
+				// through readers this test did not control, so it asserted `warnings: []` against
+				// whatever machine ran it. HERMETIC_DOCTOR_DEPS pins every environment reader, and
+				// the assertion below stays exactly what it always meant to be: a throwing
+				// `loadConfig` produces no `connection:*` finding and does not fail the report.
+				...HERMETIC_DOCTOR_DEPS,
+				loadConfig: () => {
+					throw new Error("config is malformed");
+				},
+			}).parseAsync(["--json"], { from: "user" });
+
+			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+			expect(output.ok).toBe(true);
+			expect(output.warnings).toEqual([]);
+		} finally {
+			logSpy.mockRestore();
+		}
 	});
 });
