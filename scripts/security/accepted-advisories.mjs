@@ -107,16 +107,6 @@ export const ACCEPTED_ADVISORIES = [
 		trigger: "extract-zip 2.0.2 (or later) is published, or Puppeteer removes the dependency.",
 		recheckBy: "2026-10-09",
 	},
-	{
-		ghsa: "GHSA-2883-xcg3-v3hh",
-		package: "js-yaml",
-		severity: "high",
-		why:
-			"Changesets reaches js-yaml 3.15.1 through read-yaml-file@1; the fix starts at 4.3.2, " +
-			"whose removed safeLoad API is incompatible with that legacy consumer. This is release-tooling only.",
-		trigger: "Changesets/read-yaml-file upgrades to js-yaml 4.3.2+ compatibility, or the legacy chain is removed.",
-		recheckBy: "2026-10-09",
-	},
 ];
 
 /** PURE. Three states, never two: an entry whose date has passed is EXPIRED (the acceptance
