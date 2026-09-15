@@ -69,21 +69,6 @@ export const ACCEPTED_ADVISORIES = [
 		recheckBy: "2026-11-09",
 	},
 	{
-		ghsa: "GHSA-jmr9-qjv8-65gv",
-		package: "extract-zip",
-		severity: "high",
-		why:
-			"THE PATCH THE ADVISORY NAMES DOES NOT EXIST. It says `>=2.0.2`; the registry's latest " +
-			"published version is 2.0.1 (measured 2026-08-18, `npm view extract-zip versions`). " +
-			"Transitive through `@puppeteer/browsers@2.13.2`, which requires `^2.0.1` — so even a " +
-			"lockfile override has nothing to resolve to. Browser tooling, not production runtime.",
-		trigger:
-			"2.0.2 (or later) is actually PUBLISHED. Check the registry, not the advisory page: the " +
-			"advisory has named a version that does not exist since it was filed, which is exactly " +
-			"the claim a dated acceptance exists to keep re-checking.",
-		recheckBy: "2026-11-18",
-	},
-	{
 		ghsa: "GHSA-jwp9-9v96-94mx",
 		package: "decompress",
 		severity: "moderate",
@@ -96,16 +81,6 @@ export const ACCEPTED_ADVISORIES = [
 			"4.2.2 (or later) is published, OR `weval` drops the dependency. It lifts with " +
 			"GHSA-h39j-r5qq-r9mm and GHSA-mp2f-45pm-3cg9 — same package, same missing release.",
 		recheckBy: "2026-11-18",
-	},
-	{
-		ghsa: "GHSA-7pqw-9j4j-h8q3",
-		package: "extract-zip",
-		severity: "high",
-		why:
-			"The advisory requires >=2.0.2, but the registry still publishes only through 2.0.1. " +
-			"It is transitive browser tooling through @puppeteer/browsers, not a shipped runtime dependency.",
-		trigger: "extract-zip 2.0.2 (or later) is published, or Puppeteer removes the dependency.",
-		recheckBy: "2026-10-09",
 	},
 ];
 
