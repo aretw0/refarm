@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import {
-	buildPlan,
-	parseReleaseReadinessArgs,
-	serializePlan,
-} from "./release-readiness.mjs";
+import { buildPlan, parseReleaseReadinessArgs, serializePlan } from "./release-readiness.mjs";
 
 test("prints an ordered release readiness plan", () => {
 	const output = buildPlan()
@@ -30,8 +26,14 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /agent-demo-release-proof: .*agent-demo:release-proof/);
 	assert.match(output, /secure-extensibility-proof: .*secure-extensibility:proof/);
 	assert.match(output, /local-first-platform-proof: .*local-first:proof/);
-	assert.match(output, /first-publish-selection-plan: .*release:first-publish:plan -- --selection ecosystem-ready/);
-	assert.match(output, /ecosystem-install-smoke: .*release:install:smoke -- --selection ecosystem-ready/);
+	assert.match(
+		output,
+		/first-publish-selection-plan: .*release:first-publish:plan -- --selection ecosystem-ready/,
+	);
+	assert.match(
+		output,
+		/ecosystem-install-smoke: .*release:install:smoke -- --selection ecosystem-ready/,
+	);
 	assert.match(output, /publish-dry-run: .*release:check/);
 });
 
@@ -47,7 +49,7 @@ test("prints structured release readiness metadata", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.command, "release-readiness");
 	assert.equal(payload.mode, "plan");
-// THE RULE, not the roster. This pinned all ~30 step ids verbatim and went red when
+	// THE RULE, not the roster. This pinned all ~30 step ids verbatim and went red when
 	// `no-tracked-artifacts` joined the readiness plan — a gate being ADDED broke the test that
 	// guards the plan, which is the wrong way round, and it went unnoticed because no lane ran
 	// this suite (ISS-106).
@@ -104,7 +106,10 @@ test("consumer install smoke matches the pnpm publication and handoff semantics"
 	assert.match(smoke, /"pnpm", \["pack", "--pack-destination"/);
 	assert.match(smoke, /"pnpm-workspace\.yaml"/);
 	assert.match(smoke, /overrides:/);
-	assert.match(smoke, /"pnpm", \["--store-dir", "\.pnpm-store", "install", "--no-frozen-lockfile"\]/);
+	assert.match(smoke, /const args = \["install", "--no-frozen-lockfile"\]/);
+	assert.match(smoke, /pnpm content-addressed store is deliberately reused/);
+	assert.match(smoke, /DEFAULT_COMMAND_TIMEOUT_MS/);
+	assert.match(smoke, /serializeReport/);
 	assert.doesNotMatch(smoke, /run\("npm", \["pack"/);
 	assert.doesNotMatch(smoke, /run\("npm", \["install"/);
 });
